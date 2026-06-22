@@ -237,9 +237,23 @@ tr:hover td{background:rgba(255,255,255,.025)}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--bd);border-radius:3px}
 ::-webkit-scrollbar-thumb:hover{background:var(--mu)}
+
+/* ===== TOAST ===== */
+#toast{
+  position:fixed;bottom:18px;right:18px;z-index:600;
+  background:var(--card);border:1px solid var(--bd);border-radius:var(--r8);
+  padding:9px 16px;font-size:.68rem;color:var(--g);box-shadow:var(--shadow);
+  opacity:0;transform:translateY(8px);transition:opacity .25s,transform .25s;pointer-events:none
+}
+#toast.show{opacity:1;transform:translateY(0)}
+#toast.err{color:var(--r)}
+@media print{#toast{display:none!important}}
 </style>
 </head>
 <body>
+
+<!-- ===== TOAST NOTIFICATION ===== -->
+<div id="toast"></div>
 
 <!-- ===== STICKY HEADER ===== -->
 <div class="hdr">
@@ -252,7 +266,7 @@ tr:hover td{background:rgba(255,255,255,.025)}
   </div>
   <div class="hdr-r">
     <div class="hdr-info">
-      <div id="lastUpdate">–</div>
+      <div title="เวลาที่อัพเดทข้อมูลสำเร็จล่าสุด">✓ อัพเดทล่าสุด: <span id="lastUpdate">–</span></div>
       <div id="fxReadonly" style="font-size:.52rem;color:var(--mu);margin-top:2px">USD=35฿ &middot; EUR=38฿</div>
       <div id="fxEditable" style="display:none;align-items:center;gap:5px;margin-top:2px">
         <span style="font-size:.52rem;color:var(--mu)">USD=</span>
@@ -268,7 +282,7 @@ tr:hover td{background:rgba(255,255,255,.025)}
     </div>
     <button class="btn" onclick="window.print()" style="background:rgba(86,217,160,.1);color:var(--g);border-color:rgba(86,217,160,.25)">🖨️ Print</button>
     <button id="btnDbg" class="btn btn-dbg" onclick="toggleDebug()" style="display:none">🔍 Debug</button>
-    <button class="btn btn-ref" onclick="loadData()">🔄 Refresh</button>
+    <button id="btnRef" class="btn btn-ref" onclick="loadData()">🔄 Refresh</button>
   </div>
 </div>
 
@@ -754,9 +768,63 @@ function showZone(id,btn){
 <script>
 const SHEET_ID='1NlNRWBiGudYeNwiF8bECrnMiotvQZUh17j0n-GBBdho';
 const GRPO_GID='517994942';
-const STOCK_SHEETS=['JAN-2026','FEB-2026','MAR-2026','APR-2026','MAY-2026','JUN-2026'];
-const MO_LABELS=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.'];
-const MO_FULL=['ม.ค. 2026','ก.พ. 2026','มี.ค. 2026','เม.ย. 2026','พ.ค. 2026','มิ.ย. 2026'];
+
+/* ═══════════════════════════════════════════════════════════
+   ตั้งค่าปี/เดือน — ปีถัดไปแก้แค่ 2 ค่านี้ ไม่ต้องแก้ที่อื่นเลย
+   CFG_END_MONTH: 0=ม.ค. 1=ก.พ. 2=มี.ค. 3=เม.ย. 4=พ.ค. 5=มิ.ย.
+                  6=ก.ค. 7=ส.ค. 8=ก.ย. 9=ต.ค. 10=พ.ย. 11=ธ.ค.
+   ═══════════════════════════════════════════════════════════ */
+const CFG_YEAR=2026;
+const CFG_END_MONTH=5;   // มิ.ย.
+const CFG_MONTHS=6;      // จำนวนเดือนที่แสดง (ย้อนหลังจาก CFG_END_MONTH)
+
+const MONTH_EN=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+const MONTH_TH=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+function _genMonths(year,endMo,count){
+  const arr=[];
+  for(let i=count-1;i>=0;i--){
+    let mo=endMo-i,yr=year;
+    while(mo<0){mo+=12;yr--;}
+    arr.push({yr,mo});
+  }
+  return arr;
+}
+const MO_CONFIG=_genMonths(CFG_YEAR,CFG_END_MONTH,CFG_MONTHS);
+const STOCK_SHEETS=MO_CONFIG.map(c=>`${MONTH_EN[c.mo]}-${c.yr}`);
+const MO_LABELS=MO_CONFIG.map(c=>MONTH_TH[c.mo]);
+const MO_FULL=MO_CONFIG.map(c=>`${MONTH_TH[c.mo]} ${c.yr}`);
+const PERIOD_STR=`${MO_LABELS[0]}–${MO_LABELS[MO_LABELS.length-1]} ${MO_CONFIG[MO_CONFIG.length-1].yr}`;
+const LATEST_MO_FULL=MO_FULL[MO_FULL.length-1];
+const LATEST_MO_LABEL=MO_LABELS[MO_LABELS.length-1];
+// ช่วงสำหรับ Dead Stock (5 เดือนหลังสุด เว้นเดือนแรก) เช่น "ก.พ.–มิ.ย. 2026"
+const DEAD_PERIOD_STR=MO_LABELS.length>1?`${MO_LABELS[1]}–${MO_LABELS[MO_LABELS.length-1]} ${MO_CONFIG[MO_CONFIG.length-1].yr}`:PERIOD_STR;
+function findMonthIdx(date){
+  if(!date)return -1;
+  return MO_CONFIG.findIndex(c=>c.yr===date.getFullYear()&&c.mo===date.getMonth());
+}
+
+// แทนข้อความ "ม.ค.–มิ.ย. 2026" / "ก.พ.–มิ.ย. 2026" / "มิ.ย. 2026" / "JUN-2026" / "มิ.ย."
+// ที่ฝังอยู่ใน HTML แบบ static ด้วยค่าจริงจาก CFG ปัจจุบัน — ปีถัดไปแก้ CFG_YEAR/CFG_END_MONTH
+// แล้วข้อความในหน้าเว็บจะอัพเดทตามอัตโนมัติ ไม่ต้องไล่แก้ทุกจุด
+function applyDynamicLabels(){
+  const pairs=[
+    ['ม.ค.–มิ.ย. 2026',PERIOD_STR],
+    ['ก.พ.–มิ.ย. 2026',DEAD_PERIOD_STR],
+    ['JUN-2026',STOCK_SHEETS[STOCK_SHEETS.length-1]],
+    ['มิ.ย. 2026',LATEST_MO_FULL],
+    ['มิ.ย.',LATEST_MO_LABEL],
+  ];
+  const esc=s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  const re=new RegExp(pairs.map(p=>esc(p[0])).join('|'),'g');
+  const walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);
+  const nodes=[];let n;while(n=walker.nextNode())nodes.push(n);
+  nodes.forEach(node=>{
+    if(!re.test(node.nodeValue))return;
+    re.lastIndex=0;
+    node.nodeValue=node.nodeValue.replace(re,m=>{const p=pairs.find(x=>x[0]===m);return p?p[1]:m;});
+  });
+}
+applyDynamicLabels();
 let USD=35,EUR=38;
 // โหมด admin: เพิ่ม ?debug=1 ใน URL เพื่อเปิดปุ่ม Debug และแก้อัตรา USD/EUR ได้
 // ค่าเริ่มต้น (สำหรับนำเสนอผู้บริหาร) จะซ่อนสองอย่างนี้ไว้ ป้องกันกดเปลี่ยนโดยไม่ตั้งใจ
@@ -769,13 +837,36 @@ function updateRates(){
   const u=parseFloat(document.getElementById('rateUSD').value)||35;
   const e=parseFloat(document.getElementById('rateEUR').value)||38;
   USD=u; EUR=e;
-  loadData();
+  updateRateNote();
+  if(!_cacheGrpo){loadData();return;} // ยังไม่มีข้อมูล cache (โหลดครั้งแรก) — ต้องโหลดจริง
+  // มีข้อมูลแล้ว แค่คำนวณ thb ใหม่จากอัตราล่าสุด ไม่ต้องยิง API ซ้ำ
+  _cacheGrpo.forEach(r=>{
+    const rate=r.cur==='USD'?USD:r.cur==='EUR'?EUR:1;
+    r.thb=r.origVal*rate;
+  });
+  render(_cacheGrpo,_cacheStockArr,_cacheIssueArr);
+  showToast('💱 คำนวณอัตราแลกเปลี่ยนใหม่แล้ว (ไม่ได้โหลดข้อมูลใหม่)');
+}
+function updateRateNote(){
+  const fr=document.getElementById('fxReadonly');
+  if(fr)fr.textContent=`USD=${USD}฿ · EUR=${EUR}฿`;
+}
+let _toastTimer=null;
+function showToast(msg,isErr){
+  const t=document.getElementById('toast');
+  if(!t)return;
+  t.textContent=msg;
+  t.classList.toggle('err',!!isErr);
+  t.classList.add('show');
+  if(_toastTimer)clearTimeout(_toastTimer);
+  _toastTimer=setTimeout(()=>t.classList.remove('show'),3500);
 }
 const C5=['rgba(108,143,248,.8)','rgba(86,217,160,.8)','rgba(248,201,108,.8)','rgba(248,112,108,.8)','rgba(167,139,250,.8)'];
 const GRD='#191c2a';
 const TIP={backgroundColor:'#141720',borderColor:'#1e2235',borderWidth:1,titleColor:'#e2e8f0',bodyColor:'#7a8499',padding:9,titleFont:{size:10},bodyFont:{size:10}};
 let charts={};
 let _dbg={};
+let _cacheGrpo=null,_cacheStockArr=null,_cacheIssueArr=null;
 
 /* ── JSONP loader ── */
 if(!window.google)window.google={};
@@ -882,7 +973,7 @@ function processGrpo(table){
     const date=parseDate(g(iDate));
     const mk=date?`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}`:'0000-00';
     const moIdx=date?date.getMonth():null; // 0-based
-    rows.push({date,mk,moIdx,supp:String(g(iSupp)||'–').trim(),code:String(g(iCode)||'–').trim(),desc:String(g(iDesc)||'–').trim(),qty,cur,thb:val*rate,exp:parseDate(g(iExp)),timeInsp:parseFloat(g(iTimeInsp))||0,timeSys:parseFloat(g(iTimeSys))||0,importType:String(g(iImport)||'–').trim(),tempCtrl:String(g(iTempCtrl)||'–').trim(),place:String(g(iPlace)||'–').trim()});
+    rows.push({date,mk,moIdx,supp:String(g(iSupp)||'–').trim(),code:String(g(iCode)||'–').trim(),desc:String(g(iDesc)||'–').trim(),qty,cur,origVal:val,thb:val*rate,exp:parseDate(g(iExp)),timeInsp:parseFloat(g(iTimeInsp))||0,timeSys:parseFloat(g(iTimeSys))||0,importType:String(g(iImport)||'–').trim(),tempCtrl:String(g(iTempCtrl)||'–').trim(),place:String(g(iPlace)||'–').trim()});
   }
   _dbg.grpoRows=rows.length;
   return rows;
@@ -966,10 +1057,13 @@ function processIssueAll(table){
   const iQty=fc(['quantity','qty','จำนวน','จำนวนจ่าย'],8);
   const iPrice=fc(['price_unit','price unit','unit price','price','ราคา'],9);
   const iTotal=fc(['gross total','total','ราคารวม','รวม'],10);
-  // Month name → index map (EN + TH)
-  const MO_MAP={'JAN':0,'FEB':1,'MAR':2,'APR':3,'MAY':4,'JUN':5,
-                'ม.ค.':0,'ก.พ.':1,'มี.ค.':2,'เม.ย.':3,'พ.ค.':4,'มิ.ย.':5,
-                '1':0,'2':1,'3':2,'4':3,'5':4,'6':5};
+  // Month name → index map (EN + TH + ลำดับเดือนที่ 1..N) — สร้างจาก MO_CONFIG ปัจจุบัน ไม่ผูกกับ Jan-Jun
+  const MO_MAP={};
+  MO_CONFIG.forEach((c,i)=>{
+    MO_MAP[MONTH_EN[c.mo]]=i;
+    MO_MAP[MONTH_TH[c.mo]]=i;
+    MO_MAP[String(i+1)]=i;
+  });
   const result=MO_LABELS.map(lb=>({moLabel:lb,rows:[],totalQty:0,totalThb:0}));
   let skipped=0, added=0;
   for(const row of(table.rows||[])){
@@ -997,12 +1091,22 @@ function processIssueAll(table){
   return result;
 }
 
+let _isLoading=false;
 async function loadData(){
-  document.getElementById('loading').style.display='flex';
-  document.getElementById('main').style.display='none';
-  document.getElementById('err').style.display='none';
+  if(_isLoading)return; // debounce: กันยิงซ้อนตอนกด Refresh เร็วๆ
+  _isLoading=true;
+  const btnRef=document.getElementById('btnRef');
+  if(btnRef){btnRef.disabled=true;btnRef.style.opacity='.55';btnRef.textContent='⏳ กำลังโหลด...';}
+
+  // silent = มีข้อมูลแสดงอยู่แล้ว (โหลดซ้ำ/auto-refresh) → ไม่ต้องซ่อน #main ทั้งหน้า
+  const silent=!!_cacheGrpo&&document.getElementById('main').style.display!=='none';
+  if(!silent){
+    document.getElementById('loading').style.display='flex';
+    document.getElementById('main').style.display='none';
+    document.getElementById('err').style.display='none';
+  }
   _dbg={version:"v3.1-jun15-colscan"};
-  
+
   try{
     // 1. GRPO
     setProgress(5,'กำลังโหลด GRPO. (รับเข้า)...');
@@ -1039,14 +1143,24 @@ async function loadData(){
     _dbg.issueInfo=issueArr.map(m=>({month:m.moLabel,rows:m.rows.length,totalQty:m.totalQty,totalThb:Math.round(m.totalThb),dbg:m._debug}));
 
     setProgress(98,'กำลังแสดงผล...');
+    _cacheGrpo=grpoData;_cacheStockArr=stockArr;_cacheIssueArr=issueArr;
     render(grpoData,stockArr,issueArr);
     setProgress(100);
-    
+    if(silent)showToast('✅ อัพเดทข้อมูลล่าสุดแล้ว');
+
   }catch(ex){
-    document.getElementById('loading').style.display='none';
-    document.getElementById('err').style.display='block';
-    document.getElementById('errMsg').textContent=ex.message;
+    if(silent){
+      // โหลดซ้ำพลาด — ไม่ซ่อนข้อมูลเดิมที่กำลังแสดงอยู่ แค่แจ้งเตือนว่าอัพเดทไม่สำเร็จ
+      showToast('⚠️ อัพเดทไม่สำเร็จ: '+ex.message,true);
+    }else{
+      document.getElementById('loading').style.display='none';
+      document.getElementById('err').style.display='block';
+      document.getElementById('errMsg').textContent=ex.message;
+    }
     updateDebug();
+  }finally{
+    _isLoading=false;
+    if(btnRef){btnRef.disabled=false;btnRef.style.opacity='';btnRef.textContent='🔄 Refresh';}
   }
 }
 
@@ -1057,14 +1171,25 @@ function render(grpo,stockArr,issueArr){
   // ── KPIs ──
   const totalThb=grpo.reduce((s,r)=>s+r.thb,0);
   const totalQty=grpo.reduce((s,r)=>s+r.qty,0);
-  // เลือก stock เดือนล่าสุดที่โหลดสำเร็จ (ไม่ใช่แค่ stockArr[5]) — กัน "0 เพราะโหลด error" ปนกับ "0 จริง"
-  let mayStock=stockArr[5], mayUsedFallback=false;
-  if(!mayStock||mayStock.failed){mayStock=stockArr[4];mayUsedFallback=true;}
+  // เลือก stock เดือนล่าสุดที่โหลดสำเร็จ (ไม่ใช่แค่เดือนสุดท้ายตรงๆ) — กัน "0 เพราะโหลด error" ปนกับ "0 จริง"
+  let mayStock=stockArr[stockArr.length-1], mayUsedFallback=false;
+  if(!mayStock||mayStock.failed){mayStock=stockArr[stockArr.length-2];mayUsedFallback=true;}
   if(!mayStock||mayStock.failed){mayStock={totalQty:null,items:[],failed:true};}
   const mayTotalQty=mayStock.totalQty;
   const maySku=new Set(mayStock.items.map(x=>x.code)).size;
-  const mayNear=mayStock.items.filter(x=>x.exp&&(x.exp-now)/31536e6<=0.25);
-  const mayNearSku=new Set(mayNear.map(x=>x.code)).size;
+
+  // ── Expiry — คำนวณครั้งเดียวที่นี่ ใช้ร่วมกันทั้ง KPI การ์ดและตาราง Section 7 (เลขจะตรงกันเสมอ) ──
+  // ต่อ SKU เก็บ lot ที่ EXP ใกล้สุดไว้ตัวเดียว แล้วกรองว่าใกล้หมดอายุไหมจาก lot นั้น
+  const expByCode=new Map();
+  mayStock.items.forEach(x=>{
+    if(!x.exp)return;
+    if(!expByCode.has(x.code)||expByCode.get(x.code).exp>x.exp)expByCode.set(x.code,x);
+  });
+  const allExp=[...expByCode.values()];
+  const nearItems=allExp.filter(x=>(x.exp-now)/31536e6<=0.25).sort((a,b)=>a.exp-b.exp);
+  const longItems=allExp.filter(x=>(x.exp-now)/31536e6>=2.5).sort((a,b)=>b.qty-a.qty);
+  const mayNear=nearItems; // ใช้ array เดียวกับตาราง "ใกล้หมดอายุ" เป๊ะ
+  const mayNearSku=nearItems.length;
 
   // ── ราคารับเข้าเฉลี่ยถ่วงน้ำหนัก/หน่วย จาก GRPO (ใช้คำนวณมูลค่าสต็อก + มูลค่าเสี่ยงหมดอายุ) ──
   const grpoPriceMap={};
@@ -1097,23 +1222,18 @@ function render(grpo,stockArr,issueArr){
     const k3kn=document.querySelector('#k3').parentElement.querySelector('.kn');
     if(k3kn)k3kn.textContent='⚠️ ใช้ข้อมูลเดือนก่อนหน้า (เดือนล่าสุดโหลดไม่ได้)';
   }
-  document.getElementById('hdrSub').textContent='ม.ค.–มิ.ย. 2026 · อัพเดทอัตโนมัติ';
-  
-  // ── Month buckets for GRPO ──
-  const moMap={};
-  MO_LABELS.forEach((m,i)=>moMap[m]={lb:MO_FULL[i],thb:0,usd:0,eur:0,qty:0,cnt:0,idx:i});
+  document.getElementById('hdrSub').textContent=`${PERIOD_STR} · อัพเดทอัตโนมัติ`;
+
+  // ── Month buckets for GRPO ── จับคู่ปี+เดือนจริงกับ MO_CONFIG (ไม่ผูกกับ Jan-Jun/ปีคงที่)
+  const moArr=MO_CONFIG.map((c,i)=>({lb:MO_FULL[i],thb:0,usd:0,eur:0,qty:0,cnt:0,idx:i}));
   grpo.forEach(r=>{
-    const mi=r.moIdx; // 0-11
-    const mo=mi!==null?MO_LABELS.find((_,i)=>i===mi%6):null; // map to ม.ค.-มิ.ย. by month number
-    // Use calendar month Jan=ม.ค., May=พ.ค.
-    const monthName=r.date?MO_LABELS[r.date.getMonth()]:null; // 0=ม.ค. 1=ก.พ....
-    // Only Jan-Jun (0-5)
-    if(monthName&&r.date&&r.date.getMonth()<=5&&r.date.getFullYear()===2026){
-      const m=moMap[monthName];
-      if(m){m.qty+=r.qty;m.thb+=r.thb;m.cnt++;if(r.cur==='USD')m.usd+=r.thb;else if(r.cur==='EUR')m.eur+=r.thb;}
+    const idx=findMonthIdx(r.date);
+    if(idx>=0){
+      const m=moArr[idx];
+      m.qty+=r.qty;m.thb+=r.thb;m.cnt++;
+      if(r.cur==='USD')m.usd+=r.thb;else if(r.cur==='EUR')m.eur+=r.thb;
     }
   });
-  const moArr=MO_LABELS.map(m=>moMap[m]);
   
   // ── Stock totals per month ──
   const stockTotals=stockArr.map(s=>s.totalQty);
@@ -1154,7 +1274,7 @@ function render(grpo,stockArr,issueArr){
   (issueArr||[]).forEach((mo,moIdx)=>{
     mo.rows.forEach(r=>{
       if(!r.code)return;
-      if(!issuedByItem[r.code])issuedByItem[r.code]={desc:r.desc,moQty:Array(6).fill(0),moVal:Array(6).fill(0),total:0,totalVal:0};
+      if(!issuedByItem[r.code])issuedByItem[r.code]={desc:r.desc,moQty:Array(CFG_MONTHS).fill(0),moVal:Array(CFG_MONTHS).fill(0),total:0,totalVal:0};
       issuedByItem[r.code].moQty[moIdx]+=r.qty;
       issuedByItem[r.code].moVal[moIdx]+=r.thb;
       issuedByItem[r.code].total+=r.qty;
@@ -1169,15 +1289,7 @@ function render(grpo,stockArr,issueArr){
   // ── Stock trend for top 10 SKUs ──
   const top10Codes=top10May.map(x=>x.code);
   
-  // ── Expiry tables ──
-  const expByCode=new Map();
-  mayStock.items.forEach(x=>{
-    if(!x.exp)return;
-    if(!expByCode.has(x.code)||expByCode.get(x.code).exp>x.exp)expByCode.set(x.code,x);
-  });
-  const allExp=[...expByCode.values()];
-  const nearItems=allExp.filter(x=>(x.exp-now)/31536e6<=0.25).sort((a,b)=>a.exp-b.exp);
-  const longItems=allExp.filter(x=>(x.exp-now)/31536e6>=2.5).sort((a,b)=>b.qty-a.qty);
+  // (expByCode/allExp/nearItems/longItems คำนวณไว้แล้วตอนต้น render() — ใช้ตัวเดียวกัน)
   
   // ── Expiry pie data ──
   const expired=allExp.filter(x=>(x.exp-now)/31536e6<=0).length;
@@ -1260,8 +1372,8 @@ function render(grpo,stockArr,issueArr){
     <td class="num">${fmt(i.thb)}฿</td><td class="num">${fmt(i.qty)}</td>
     <td><div class="br-row"><div class="bar-fill" style="width:${Math.round(i.thb/mx10*60)}px"></div>${(i.thb/mx10*100).toFixed(0)}%</div></td></tr>`).join('');
 
-  // ── 9.5. Stock by Warehouse (JUN-2026, Wh Code column J) ──
-  const junStock=stockArr[5]||stockArr[4]||{items:[]};
+  // ── 9.5. Stock by Warehouse (เดือนล่าสุด, Wh Code column J) ──
+  const junStock=mayStock;
   const whMap=new Map();
   junStock.items.forEach(x=>{
     const wh=x.wh&&x.wh!=='–'&&x.wh!==''?x.wh:'ไม่ระบุ';
@@ -1293,7 +1405,6 @@ function render(grpo,stockArr,issueArr){
 
   // Trend table — redesigned as proper <table> for clarity
   const tg=document.getElementById('trendGrid');
-  const MO_FULL6=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.'];
   const thS='padding:4px 8px;text-align:center;font-size:.58rem;color:var(--mu);font-weight:700;border-bottom:1px solid var(--bd);white-space:nowrap';
   const tdS='padding:3px 8px;text-align:right;font-size:.6rem;font-variant-numeric:tabular-nums;white-space:nowrap';
   const codeS='padding:3px 8px;font-family:monospace;font-size:.6rem;white-space:nowrap;color:var(--ac)';
@@ -1311,8 +1422,8 @@ function render(grpo,stockArr,issueArr){
       const arrow=i>0&&vals[i-1]>0?(v>vals[i-1]?'<span style="color:var(--g);font-size:.5rem">▲</span>':v<vals[i-1]?'<span style="color:var(--r);font-size:.5rem">▼</span>':''):'';
       return`<td style="${tdS};${bg}">${v>0?fmt(v):'–'}${arrow}</td>`;
     }).join('');
-    // change % ม.ค.→มิ.ย.
-    const chg=vals[0]>0?((vals[5]-vals[0])/vals[0]*100).toFixed(1):null;
+    // change % เดือนแรก→เดือนล่าสุดของช่วงที่แสดง
+    const chg=vals[0]>0?((vals[vals.length-1]-vals[0])/vals[0]*100).toFixed(1):null;
     const chgHtml=chg!==null?`<span style="font-size:.55rem;color:${parseFloat(chg)>=0?'var(--g)':'var(--r)'}">${parseFloat(chg)>=0?'▲':'▼'}${Math.abs(chg)}%</span>`:'–';
     const rowBg=ri%2===0?'background:rgba(255,255,255,.02)':'';
     return`<tr style="${rowBg}">
@@ -1327,8 +1438,8 @@ function render(grpo,stockArr,issueArr){
     <thead><tr>
       <th style="${thS};text-align:left">Item Code</th>
       <th style="${thS};text-align:left">ชื่อสินค้า</th>
-      ${MO_FULL6.map(m=>`<th style="${thS}">${m}</th>`).join('')}
-      <th style="${thS}">เปลี่ยนแปลง<br>ม.ค.→มิ.ย.</th>
+      ${MO_LABELS.map(m=>`<th style="${thS}">${m}</th>`).join('')}
+      <th style="${thS}">เปลี่ยนแปลง<br>${MO_LABELS[0]}→${LATEST_MO_LABEL}</th>
     </tr></thead>
     <tbody>${trendRows}</tbody>
   </table>`;
@@ -1372,14 +1483,13 @@ function render(grpo,stockArr,issueArr){
   // ═══════════════════════════════════════════
   // SECTION 13: Receiving Performance
   // ═══════════════════════════════════════════
-  const timeByMo={};
-  MO_LABELS.forEach(m=>timeByMo[m]={tot:0,cnt:0});
+  const timeByMoArr=MO_CONFIG.map(()=>({tot:0,cnt:0}));
   grpo.forEach(r=>{
-    if(!r.date||r.date.getFullYear()!==2026||r.date.getMonth()>5)return;
-    const m=MO_LABELS[r.date.getMonth()];
-    if(r.timeInsp>0){timeByMo[m].tot+=r.timeInsp;timeByMo[m].cnt++;}
+    if(r.timeInsp<=0)return;
+    const idx=findMonthIdx(r.date);
+    if(idx>=0){timeByMoArr[idx].tot+=r.timeInsp;timeByMoArr[idx].cnt++;}
   });
-  const avgTimeByMo=MO_LABELS.map(m=>timeByMo[m].cnt>0?(timeByMo[m].tot/timeByMo[m].cnt).toFixed(1):0);
+  const avgTimeByMo=timeByMoArr.map(t=>t.cnt>0?(t.tot/t.cnt).toFixed(1):0);
 
   const suppTimeMap=new Map();
   grpo.forEach(r=>{
@@ -1550,7 +1660,7 @@ function render(grpo,stockArr,issueArr){
   window._deadWhMap=deadWhMap;
   document.getElementById('k6').textContent=deadStock.length;
   if(document.getElementById('k6n'))document.getElementById('k6n').textContent=deadStockVal>0?'มูลค่า ~'+fmt(Math.round(deadStockVal))+'฿':'SKU ไม่มีการเบิกจ่าย';
-  document.getElementById('k7').textContent=fmt(issuedTotalByMo[5]||0);
+  document.getElementById('k7').textContent=fmt(issuedTotalByMo[issuedTotalByMo.length-1]||0);
 
   // ── KPI k8: Inventory Turnover ──
   const totalIssuedAll=issuedTotalByMo.reduce((s,v)=>s+v,0);
@@ -1628,8 +1738,9 @@ function render(grpo,stockArr,issueArr){
     const tdStyle='padding:5px 8px;text-align:right;border-bottom:1px solid rgba(255,255,255,.04);font-size:.62rem;white-space:nowrap';
     const lblStyle='padding:5px 8px;text-align:left;border-bottom:1px solid rgba(255,255,255,.04);font-size:.62rem;color:var(--mu);white-space:nowrap';
     // Header
-    s17Head.innerHTML=`<tr><th style="${lblStyle}">KPI</th>${MO_FULL.map(m=>`<th style="${thStyle}">${m}</th>`).join('')}<th style="${thStyle}">เปลี่ยนแปลง<br>ม.ค.→มิ.ย.</th></tr>`;
+    s17Head.innerHTML=`<tr><th style="${lblStyle}">KPI</th>${MO_FULL.map(m=>`<th style="${thStyle}">${m}</th>`).join('')}<th style="${thStyle}">เปลี่ยนแปลง<br>${MO_LABELS[0]}→${LATEST_MO_LABEL}</th></tr>`;
     // Rows
+    const LI=moArr.length-1; // ดัชนีเดือนล่าสุด — ไม่ผูกกับ 6 เดือนตรงๆ
     const pct=(a,b)=>b&&a?(((b-a)/Math.abs(a))*100).toFixed(1)+'%':'–';
     const arw=(a,b,up)=>{if(!b||!a)return'';const r=(b-a)/Math.abs(a);const good=up?r>=0:r<=0;return`<span style="color:${good?'var(--g)':'var(--r)'}">${r>=0?'▲':'▼'}${Math.abs(r*100).toFixed(1)}%</span>`;};
     // arwN = neutral (gray), arwU = up good (green/red), arwD = down good (green/red)
@@ -1637,12 +1748,12 @@ function render(grpo,stockArr,issueArr){
     const arwU=(a,b)=>{if(!b||!a)return'';const r=(b-a)/Math.abs(a);return`<span style="color:${r>=0?'var(--g)':'var(--r)'}">${r>=0?'▲':'▼'}${Math.abs(r*100).toFixed(1)}%</span>`;};
     const arwD=(a,b)=>{if(!b||!a)return'';const r=(b-a)/Math.abs(a);return`<span style="color:${r<=0?'var(--g)':'var(--r)'}">${r>=0?'▲':'▼'}${Math.abs(r*100).toFixed(1)}%</span>`;};
     const rows17=[
-      {lb:'📦 รับเข้า — จำนวน (หน่วย)', data:moArr.map(m=>fmt(m.qty)), chg:arwN(moArr[0].qty,moArr[5].qty)},
-      {lb:'💰 รับเข้า — มูลค่า (฿)', data:moArr.map(m=>fmt(m.thb)), chg:arwN(moArr[0].thb,moArr[5].thb)},
-      {lb:'📋 ใบรับเข้า (GRPO) (ใบ)', data:moArr.map(m=>m.cnt||0), chg:arwN(moArr[0].cnt,moArr[5].cnt)},
-      {lb:'🏭 Stock คงเหลือ (หน่วย)', data:stockArr.map(s=>s.failed?'<span class="eb ec" style="font-size:.52rem">N/A</span>':fmt(s.totalQty)), chg:(stockArr[0].failed||stockArr[5].failed)?'–':arwU(stockArr[0].totalQty,stockArr[5].totalQty)},
-      {lb:'💊 จ่ายออก — จำนวน (หน่วย)', data:issuedTotalByMo.map(v=>fmt(v)), chg:arwU(issuedTotalByMo[0],issuedTotalByMo[5])},
-      {lb:'💵 จ่ายออก — มูลค่า (฿)', data:issuedValByMo.map(v=>v>0?fmt(v):'–'), chg:issuedValByMo[0]&&issuedValByMo[5]?arwU(issuedValByMo[0],issuedValByMo[5]):'–'},
+      {lb:'📦 รับเข้า — จำนวน (หน่วย)', data:moArr.map(m=>fmt(m.qty)), chg:arwN(moArr[0].qty,moArr[LI].qty)},
+      {lb:'💰 รับเข้า — มูลค่า (฿)', data:moArr.map(m=>fmt(m.thb)), chg:arwN(moArr[0].thb,moArr[LI].thb)},
+      {lb:'📋 ใบรับเข้า (GRPO) (ใบ)', data:moArr.map(m=>m.cnt||0), chg:arwN(moArr[0].cnt,moArr[LI].cnt)},
+      {lb:'🏭 Stock คงเหลือ (หน่วย)', data:stockArr.map(s=>s.failed?'<span class="eb ec" style="font-size:.52rem">N/A</span>':fmt(s.totalQty)), chg:(stockArr[0].failed||stockArr[LI].failed)?'–':arwU(stockArr[0].totalQty,stockArr[LI].totalQty)},
+      {lb:'💊 จ่ายออก — จำนวน (หน่วย)', data:issuedTotalByMo.map(v=>fmt(v)), chg:arwU(issuedTotalByMo[0],issuedTotalByMo[LI])},
+      {lb:'💵 จ่ายออก — มูลค่า (฿)', data:issuedValByMo.map(v=>v>0?fmt(v):'–'), chg:issuedValByMo[0]&&issuedValByMo[LI]?arwU(issuedValByMo[0],issuedValByMo[LI]):'–'},
       {lb:'💤 Dead Stock (SKU)', data:(()=>{
         return stockArr.map((s,mi)=>{
           const issuedCodes=new Set((issueArr[mi]?.rows||[]).map(r=>r.code));
@@ -1664,9 +1775,10 @@ function render(grpo,stockArr,issueArr){
     {icon:'📉',label:'Stock Coverage <2 เดือน',val:(()=>{
       // รวม qty ต่อ SKU จาก stockByCode (ที่ sum แล้ว)
       const avgIssued={};
-      for(let i=1;i<6;i++){issueArr[i].rows.forEach(r=>{avgIssued[r.code]=(avgIssued[r.code]||0)+r.qty;});}
+      for(let i=1;i<issueArr.length;i++){issueArr[i].rows.forEach(r=>{avgIssued[r.code]=(avgIssued[r.code]||0)+r.qty;});}
+      const divisor=Math.max(issueArr.length-1,1);
       return [...stockByCode.values()].filter(s=>{
-        const avg=(avgIssued[s.code]||0)/5;
+        const avg=(avgIssued[s.code]||0)/divisor;
         return avg>0&&s.stock/avg<2;
       }).length;
     })() + ' SKU',
