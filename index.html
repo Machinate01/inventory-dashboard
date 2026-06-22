@@ -349,6 +349,7 @@ tr:hover td{background:rgba(255,255,255,.025)}
     <input id="searchInput" type="text" placeholder="พิมพ์ Item Code หรือชื่อสินค้า..." oninput="doSearch(this.value)">
     <button class="clear-btn" onclick="clearSearch()">✕ ล้าง</button>
     <div id="searchResult">
+      <div id="searchCount" style="font-size:.58rem;color:var(--mu);margin-bottom:5px"></div>
       <table>
         <thead><tr>
           <th>Item Code</th><th>ชื่อสินค้า</th>
@@ -599,7 +600,7 @@ tr:hover td{background:rgba(255,255,255,.025)}
       </div>
       <div style="display:flex;gap:6px;align-items:center">
         <label style="font-size:.6rem;color:var(--mu)">แสดงเฉพาะ:</label>
-        <select id="fefoFilter" onchange="renderFEFO()" style="background:var(--card);border:1px solid var(--bd);color:var(--tx);border-radius:var(--r4);padding:2px 6px;font-size:.6rem;cursor:pointer">
+        <select id="fefoFilter" onchange="renderFEFO(true)" style="background:var(--card);border:1px solid var(--bd);color:var(--tx);border-radius:var(--r4);padding:2px 6px;font-size:.6rem;cursor:pointer">
           <option value="all">ทั้งหมด</option>
           <option value="expired">⛔ หมดแล้ว</option>
           <option value="3m">🔴 &lt;3 เดือน</option>
@@ -619,6 +620,7 @@ tr:hover td{background:rgba(255,255,255,.025)}
         <tbody id="tFEFO"></tbody>
       </table>
     </div>
+    <button id="btnMoreFEFO" onclick="showMoreFEFO()" style="display:none;width:100%;margin-top:8px;padding:7px;background:rgba(255,255,255,.03);border:1px dashed var(--bd);border-radius:var(--r8);color:var(--mu);font-size:.62rem;cursor:pointer">▼ แสดงเพิ่มเติม</button>
   </div>
 
 </div><!-- /zone-alert -->
@@ -691,6 +693,7 @@ tr:hover td{background:rgba(255,255,255,.025)}
         <tbody id="tDeadStock"></tbody>
       </table>
     </div>
+    <button id="btnMoreDead" onclick="showMoreDeadStock()" style="display:none;width:100%;margin-top:8px;padding:7px;background:rgba(255,255,255,.03);border:1px dashed var(--bd);border-radius:var(--r8);color:var(--mu);font-size:.62rem;cursor:pointer">▼ แสดงเพิ่มเติม</button>
   </div>
 
 </div><!-- /zone-analysis -->
@@ -1698,30 +1701,8 @@ function render(grpo,stockArr,issueArr){
     }
   }
 
-  document.getElementById('tDeadStock').innerHTML=deadStock.length
-    ?deadStock.slice(0,30).map((x,n)=>{
-      const remY=x.exp?((x.exp-now)/31536e6):null;
-      const remCl=remY===null?'var(--mu)':remY<=0?'var(--r)':remY<=0.75?'var(--o)':'var(--g)';
-      const remStr=remY===null?'–':remY<=0?'⛔ หมดแล้ว':remY.toFixed(1)+' ปี';
-      const st=remY!==null&&remY<=0?'<span class="eb ec">☠️ หมดอายุ</span>':x.qty>500?'<span class="eb ec">🔴 High Qty</span>':x.qty>100?'<span class="eb ew">🟡 Monitor</span>':'<span class="eb eo">🟠 Low Qty</span>';
-      const unitP=grpoPriceMap[x.code]||0;
-      const val=unitP*x.qty;
-      const whSet=deadWhMap.get(x.code);
-      const whStr=whSet&&whSet.size>0?[...whSet].sort().join(', '):'–';
-      const rowBg=remY!==null&&remY<=0?'background:rgba(248,112,108,.06)':remY!==null&&remY<=0.5?'background:rgba(248,168,108,.04)':'';
-      return`<tr style="${rowBg}">
-        <td class="rk">${n+1}</td>
-        <td title="${x.desc||''}" style="max-width:240px"><div class="code">${x.code}</div><div class="nm" style="white-space:normal;word-break:break-word">${x.desc||'–'}</div></td>
-        <td class="num" style="font-weight:600">${fmt(x.qty)}</td>
-        <td class="num" style="color:${unitP>0?'var(--ac)':'var(--mu)'};font-size:.68rem">${unitP>0?fmt(unitP)+'฿':'–'}</td>
-        <td class="num" style="color:${val>0?'var(--y)':'var(--mu)'};font-weight:${val>0?'700':'400'}">${val>0?fmt(Math.round(val))+'฿':'–'}</td>
-        <td style="font-size:.6rem;color:var(--mu);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${x.supp||''}">${x.supp&&x.supp!=='–'?x.supp:'–'}</td>
-        <td class="num" style="font-size:.62rem;color:var(--mu)">${whStr}</td>
-        <td class="num" style="font-size:.57rem;color:${remY!==null&&remY<=0?'var(--r)':'var(--mu)'}">${fmtD(x.exp)}</td>
-        <td class="num" style="color:${remCl};font-size:.6rem;font-weight:${remY!==null&&remY<=0?'700':'400'}">${remStr}</td>
-        <td>${st}</td>
-      </tr>`;}).join('')
-    :`<tr><td colspan="10" style="text-align:center;color:var(--g);padding:16px">✅ ไม่มี Dead Stock — ทุก SKU มีการเคลื่อนไหว</td></tr>`;
+  _deadStockShown=30;
+  renderDeadStock();
 
   // ═══════════════════════════════════════════
   // SECTION 11: By Vendor tab — Stock คงเหลือ พ.ค. รวมต่อ Vendor
@@ -1882,7 +1863,7 @@ function render(grpo,stockArr,issueArr){
     .filter(x=>x.qty>0&&x.exp)
     .sort((a,b)=>a.exp-b.exp);
   window._fefoItems=fefoItems;
-  renderFEFO();
+  renderFEFO(true);
 
   // Last update
   const ts=new Date();
@@ -1984,8 +1965,54 @@ function filterABC(g){
   renderABCTable(g);
 }
 
+// ── Dead Stock helpers (pagination) ──
+let _deadStockShown=30;
+function renderDeadStock(){
+  const now=new Date();
+  const deadStock=window._deadStockData||[];
+  const grpoPriceMap=window._grpoPriceMap||{};
+  const deadWhMap=window._deadWhMap||new Map();
+  const shown=deadStock.slice(0,_deadStockShown);
+  document.getElementById('tDeadStock').innerHTML=deadStock.length
+    ?shown.map((x,n)=>{
+      const remY=x.exp?((x.exp-now)/31536e6):null;
+      const remCl=remY===null?'var(--mu)':remY<=0?'var(--r)':remY<=0.75?'var(--o)':'var(--g)';
+      const remStr=remY===null?'–':remY<=0?'⛔ หมดแล้ว':remY.toFixed(1)+' ปี';
+      const st=remY!==null&&remY<=0?'<span class="eb ec">☠️ หมดอายุ</span>':x.qty>500?'<span class="eb ec">🔴 High Qty</span>':x.qty>100?'<span class="eb ew">🟡 Monitor</span>':'<span class="eb eo">🟠 Low Qty</span>';
+      const unitP=grpoPriceMap[x.code]||0;
+      const val=unitP*x.qty;
+      const whSet=deadWhMap.get(x.code);
+      const whStr=whSet&&whSet.size>0?[...whSet].sort().join(', '):'–';
+      const rowBg=remY!==null&&remY<=0?'background:rgba(248,112,108,.06)':remY!==null&&remY<=0.5?'background:rgba(248,168,108,.04)':'';
+      return`<tr style="${rowBg}">
+        <td class="rk">${n+1}</td>
+        <td title="${x.desc||''}" style="max-width:240px"><div class="code">${x.code}</div><div class="nm" style="white-space:normal;word-break:break-word">${x.desc||'–'}</div></td>
+        <td class="num" style="font-weight:600">${fmt(x.qty)}</td>
+        <td class="num" style="color:${unitP>0?'var(--ac)':'var(--mu)'};font-size:.68rem">${unitP>0?fmt(unitP)+'฿':'–'}</td>
+        <td class="num" style="color:${val>0?'var(--y)':'var(--mu)'};font-weight:${val>0?'700':'400'}">${val>0?fmt(Math.round(val))+'฿':'–'}</td>
+        <td style="font-size:.6rem;color:var(--mu);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${x.supp||''}">${x.supp&&x.supp!=='–'?x.supp:'–'}</td>
+        <td class="num" style="font-size:.62rem;color:var(--mu)">${whStr}</td>
+        <td class="num" style="font-size:.57rem;color:${remY!==null&&remY<=0?'var(--r)':'var(--mu)'}">${fmtD(x.exp)}</td>
+        <td class="num" style="color:${remCl};font-size:.6rem;font-weight:${remY!==null&&remY<=0?'700':'400'}">${remStr}</td>
+        <td>${st}</td>
+      </tr>`;}).join('')
+    :`<tr><td colspan="10" style="text-align:center;color:var(--g);padding:16px">✅ ไม่มี Dead Stock — ทุก SKU มีการเคลื่อนไหว</td></tr>`;
+  const btn=document.getElementById('btnMoreDead');
+  if(btn){
+    const remaining=deadStock.length-shown.length;
+    btn.style.display=remaining>0?'block':'none';
+    btn.textContent=`▼ แสดงเพิ่มเติม (เหลืออีก ${remaining} รายการ)`;
+  }
+}
+function showMoreDeadStock(){
+  _deadStockShown+=30;
+  renderDeadStock();
+}
+
 // ── FEFO helpers ──
-function renderFEFO(){
+let _fefoShown=50;
+function renderFEFO(resetPaging){
+  if(resetPaging)_fefoShown=50;
   const now=new Date();
   const filter=document.getElementById('fefoFilter')?.value||'all';
   let items=(window._fefoItems||[]);
@@ -1996,7 +2023,7 @@ function renderFEFO(){
   const el=document.getElementById('tFEFO');
   if(!el)return;
   el.innerHTML=items.length
-    ?items.slice(0,50).map((x,n)=>{
+    ?items.slice(0,_fefoShown).map((x,n)=>{
       const y=(x.exp-now)/31536e6;
       const[cl,lb]=y<=0?['var(--r)','⛔ หมดแล้ว']:y<=0.25?['var(--r)','🔴 <3 เดือน']:y<=0.5?['var(--o)','🟠 <6 เดือน']:y<=0.75?['var(--y)','🟡 <9 เดือน']:['var(--g)','✅ ปกติ'];
       const rowBg=y<=0?'background:rgba(248,112,108,.07)':y<=0.25?'background:rgba(248,112,108,.04)':'';
@@ -2010,8 +2037,18 @@ function renderFEFO(){
         <td class="num" style="font-weight:600">${fmt(x.qty)}</td>
         <td class="num" style="font-size:.6rem;color:var(--mu)">${x.wh||'–'}</td>
         <td><span class="eb" style="background:${y<=0?'rgba(248,112,108,.2)':y<=0.25?'rgba(248,112,108,.15)':y<=0.5?'rgba(248,168,108,.15)':y<=0.75?'rgba(248,201,108,.15)':'rgba(86,217,160,.1)'};color:${cl};border:1px solid ${cl}">${lb}</span></td>
-      </tr>`;}).join('')+(items.length>50?`<tr><td colspan="8" style="text-align:center;color:var(--mu);padding:8px;font-size:.6rem">...และอีก ${items.length-50} รายการ — Export CSV เพื่อดูทั้งหมด</td></tr>`:'')
+      </tr>`;}).join('')
     :`<tr><td colspan="8" style="text-align:center;color:var(--g);padding:16px">✅ ไม่มี LOT ที่ต้องแจ้งเตือน</td></tr>`;
+  const btn=document.getElementById('btnMoreFEFO');
+  if(btn){
+    const remaining=items.length-Math.min(_fefoShown,items.length);
+    btn.style.display=remaining>0?'block':'none';
+    btn.textContent=`▼ แสดงเพิ่มเติม (เหลืออีก ${remaining} รายการ — หรือ Export CSV เพื่อดูทั้งหมด)`;
+  }
+}
+function showMoreFEFO(){
+  _fefoShown+=50;
+  renderFEFO();
 }
 
 // ── Downloads ──
@@ -2085,7 +2122,10 @@ function doSearch(q){
   const body=document.getElementById('searchBody');
   if(!q){res.style.display='none';return;}
   buildSearchData();
-  const matches=(_searchData||[]).filter(x=>x.code.toLowerCase().includes(q)||x.desc.toLowerCase().includes(q)).slice(0,20);
+  const allMatches=(_searchData||[]).filter(x=>x.code.toLowerCase().includes(q)||x.desc.toLowerCase().includes(q));
+  const matches=allMatches.slice(0,20);
+  const cntEl=document.getElementById('searchCount');
+  if(cntEl)cntEl.textContent=allMatches.length>20?`แสดง 20 จาก ${allMatches.length} รายการที่ตรงกัน — พิมพ์เจาะจงขึ้นเพื่อกรองผลให้น้อยลง`:(allMatches.length?`พบ ${allMatches.length} รายการ`:'');
   if(!matches.length){body.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--mu);padding:12px">ไม่พบสินค้า</td></tr>';res.style.display='block';return;}
   const now=new Date();
   body.innerHTML=matches.map(x=>{
