@@ -80,7 +80,7 @@ body{background:var(--bg);color:var(--tx);font-family:'Segoe UI',system-ui,sans-
 .zone-sub{font-size:.58rem;color:var(--mu);margin-left:auto}
 
 /* ===== KPI GRID ===== */
-.kpi-row{display:grid;grid-template-columns:repeat(8,1fr);gap:8px}
+.kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
 .kpi{
   background:var(--card);border:1px solid var(--bd);border-radius:var(--r12);
   padding:12px 14px;position:relative;overflow:hidden;
@@ -91,11 +91,24 @@ body{background:var(--bg);color:var(--tx);font-family:'Segoe UI',system-ui,sans-
 .kpi.bl::before{background:var(--ac)}.kpi.gr::before{background:var(--g)}
 .kpi.yl::before{background:var(--y)}.kpi.rd::before{background:var(--r)}
 .kpi.pu::before{background:var(--pu)}.kpi.or::before{background:var(--o)}
+.kpi.money::before{background:var(--g)}
+.kpi.money{border-color:rgba(86,217,160,.35)}
 .ki{position:absolute;right:8px;top:8px;font-size:1.2rem;opacity:.08}
 .kl{font-size:.52rem;color:var(--mu);font-weight:700;text-transform:uppercase;letter-spacing:.5px;line-height:1.3;margin-bottom:3px}
 .kv{font-size:1.25rem;font-weight:900;line-height:1}
 .kv.sm{font-size:.95rem}
 .kn{font-size:.52rem;color:var(--mu);margin-top:3px}
+
+/* ===== EXECUTIVE SUMMARY ===== */
+.exec-summary{
+  background:linear-gradient(135deg,rgba(108,143,248,.08),rgba(86,217,160,.05));
+  border:1px solid rgba(108,143,248,.25);border-radius:var(--r12);
+  padding:14px 16px;margin-bottom:12px
+}
+.exec-hd{font-size:.72rem;font-weight:800;color:var(--tx);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.exec-list{display:flex;flex-direction:column;gap:6px}
+.exec-item{font-size:.68rem;color:var(--tx);line-height:1.5;display:flex;gap:8px;align-items:flex-start}
+.exec-item b{font-weight:800}
 
 /* ===== ALERT CARDS ===== */
 #alertSummary{display:none;margin-bottom:12px}
@@ -209,11 +222,13 @@ tr:hover td{background:rgba(255,255,255,.025)}
 
 /* ===== PRINT ===== */
 @media print{
-  .hdr,.sec-nav{position:relative!important;background:#fff;color:#000;border:none;backdrop-filter:none}
+  .hdr{position:relative!important;background:#fff;color:#000;border:none;backdrop-filter:none}
+  .sec-nav{display:none!important}
+  .zone{display:block!important;margin-bottom:18px;page-break-inside:avoid}
   .live-badge,.btn,.live-dot{display:none!important}
   body{background:#fff!important;color:#000!important}
   .card,.kpi{background:#f8f8f8!important;border-color:#ddd!important}
-  .zone-hd{background:#f0f0f0!important}
+  .zone-hd{background:#f0f0f0!important;page-break-after:avoid}
   .page{padding:0}
 }
 
@@ -231,16 +246,15 @@ tr:hover td{background:rgba(255,255,255,.025)}
   <div class="hdr-l">
     <div class="live-badge"><span class="live-dot"></span>LIVE</div>
     <div>
-      <h1>รับสินค้า &amp; <em>Inventory</em> Dashboard
-        <span id="ver-badge" style="font-size:10px;font-weight:500;color:var(--y);margin-left:8px">v5.1</span>
-      </h1>
+      <h1>รับสินค้า &amp; <em>Inventory</em> Dashboard</h1>
       <div class="hdr-sub" id="hdrSub">กำลังโหลด...</div>
     </div>
   </div>
   <div class="hdr-r">
     <div class="hdr-info">
       <div id="lastUpdate">–</div>
-      <div style="display:flex;align-items:center;gap:5px;margin-top:2px">
+      <div id="fxReadonly" style="font-size:.52rem;color:var(--mu);margin-top:2px">USD=35฿ &middot; EUR=38฿</div>
+      <div id="fxEditable" style="display:none;align-items:center;gap:5px;margin-top:2px">
         <span style="font-size:.52rem;color:var(--mu)">USD=</span>
         <input id="rateUSD" type="number" value="35" min="1" max="999" step="0.5"
           style="width:40px;background:rgba(255,255,255,.06);border:1px solid var(--bd);border-radius:var(--r4);color:var(--y);font-size:.58rem;padding:1px 4px;text-align:center;outline:none;font-family:inherit"
@@ -253,7 +267,7 @@ tr:hover td{background:rgba(255,255,255,.025)}
       </div>
     </div>
     <button class="btn" onclick="window.print()" style="background:rgba(86,217,160,.1);color:var(--g);border-color:rgba(86,217,160,.25)">🖨️ Print</button>
-    <button class="btn btn-dbg" onclick="toggleDebug()">🔍 Debug</button>
+    <button id="btnDbg" class="btn btn-dbg" onclick="toggleDebug()" style="display:none">🔍 Debug</button>
     <button class="btn btn-ref" onclick="loadData()">🔄 Refresh</button>
   </div>
 </div>
@@ -285,8 +299,18 @@ tr:hover td{background:rgba(255,255,255,.025)}
 <!-- ===== ZONE: ภาพรวม (Overview KPIs) ===== -->
 <div class="zone active" id="zone-overview">
 
-  <!-- KPI Row (8 cards) -->
+  <!-- Executive Summary (สรุปสำหรับผู้บริหาร) -->
+  <div class="exec-summary">
+    <div class="exec-hd">📌 สรุปสำหรับผู้บริหาร</div>
+    <div class="exec-list" id="execSummaryList">
+      <div class="exec-item" style="color:var(--mu)">กำลังประมวลผล...</div>
+    </div>
+  </div>
+
+  <!-- KPI Row (10 cards) -->
   <div class="kpi-row" style="margin-bottom:12px">
+    <div class="kpi money"><div class="ki">🏦</div><div class="kl">มูลค่าสต็อกคงเหลือ</div><div class="kv sm" id="k9">–</div><div class="kn">ประเมินจากราคารับเข้าเฉลี่ย</div></div>
+    <div class="kpi rd"><div class="ki">💸</div><div class="kl">มูลค่าเสี่ยงใกล้หมดอายุ</div><div class="kv sm" id="k10">–</div><div class="kn">≤3 เดือน — ควรเร่งระบาย</div></div>
     <div class="kpi bl"><div class="ki">💰</div><div class="kl">มูลค่ารับเข้า 6 เดือน</div><div class="kv sm" id="k1">–</div><div class="kn">ม.ค.–มิ.ย. 2026 (฿ equiv)</div></div>
     <div class="kpi gr"><div class="ki">📥</div><div class="kl">จำนวนรับเข้า 6 เดือน</div><div class="kv sm" id="k2">–</div><div class="kn" id="k2n">รายการทั้งหมด</div></div>
     <div class="kpi yl"><div class="ki">📦</div><div class="kl">Stock คงเหลือ มิ.ย.</div><div class="kv sm" id="k3">–</div><div class="kn">หน่วยรวมทุก SKU (JUN-2026)</div></div>
@@ -334,6 +358,7 @@ tr:hover td{background:rgba(255,255,255,.025)}
     <span class="zone-title">Monthly KPI Summary — ม.ค.–มิ.ย. 2026</span>
   </div>
   <div class="card" style="overflow-x:auto;margin-bottom:0">
+    <div style="font-size:.56rem;color:var(--mu);margin-bottom:6px"><span class="eb ec" style="font-size:.5rem">N/A</span> = โหลดข้อมูลเดือนนั้นไม่ได้ (ไม่ใช่ Stock เป็น 0 จริง)</div>
     <table id="tMonthlySummary" style="width:100%;border-collapse:collapse;font-size:.62rem">
       <thead id="tMonthlySummaryHead"></thead>
       <tbody id="tMonthlySummaryBody"></tbody>
@@ -365,9 +390,12 @@ tr:hover td{background:rgba(255,255,255,.025)}
     </div>
     <div class="card">
       <div class="ct">จำนวนรับเข้า (หน่วย)</div>
-      <div class="cs">Month-over-Month</div>
-      <div class="ch"><canvas id="cQty"></canvas></div>
-      <div class="ch"><canvas id="cGrpoCount"></canvas></div>
+      <div class="tabs" style="margin-bottom:5px">
+        <button class="tab on" onclick="showQtyTab('qty',this)">📦 หน่วย</button>
+        <button class="tab" onclick="showQtyTab('grpo',this)">📋 ใบ GR</button>
+      </div>
+      <div id="pQtyChart" class="ch"><canvas id="cQty"></canvas></div>
+      <div id="pGrpoChart" class="ch" style="display:none"><canvas id="cGrpoCount"></canvas></div>
     </div>
     <div class="card">
       <div class="ct">Top 8 ผู้จัดจำหน่าย</div>
@@ -730,6 +758,13 @@ const STOCK_SHEETS=['JAN-2026','FEB-2026','MAR-2026','APR-2026','MAY-2026','JUN-
 const MO_LABELS=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.'];
 const MO_FULL=['ม.ค. 2026','ก.พ. 2026','มี.ค. 2026','เม.ย. 2026','พ.ค. 2026','มิ.ย. 2026'];
 let USD=35,EUR=38;
+// โหมด admin: เพิ่ม ?debug=1 ใน URL เพื่อเปิดปุ่ม Debug และแก้อัตรา USD/EUR ได้
+// ค่าเริ่มต้น (สำหรับนำเสนอผู้บริหาร) จะซ่อนสองอย่างนี้ไว้ ป้องกันกดเปลี่ยนโดยไม่ตั้งใจ
+if(new URLSearchParams(location.search).get('debug')==='1'){
+  const bd=document.getElementById('btnDbg');if(bd)bd.style.display='inline-block';
+  const fr=document.getElementById('fxReadonly');if(fr)fr.style.display='none';
+  const fe=document.getElementById('fxEditable');if(fe)fe.style.display='flex';
+}
 function updateRates(){
   const u=parseFloat(document.getElementById('rateUSD').value)||35;
   const e=parseFloat(document.getElementById('rateEUR').value)||38;
@@ -986,7 +1021,7 @@ async function loadData(){
         stockArr.push(processStock(r.table,MO_LABELS[i]));
       }catch(e){
         console.warn(`Stock ${MO_LABELS[i]} failed:`,e.message);
-        stockArr.push({moLabel:MO_LABELS[i],totalQty:0,items:[]});
+        stockArr.push({moLabel:MO_LABELS[i],totalQty:null,items:[],failed:true});
       }
     }
     
@@ -1022,18 +1057,46 @@ function render(grpo,stockArr,issueArr){
   // ── KPIs ──
   const totalThb=grpo.reduce((s,r)=>s+r.thb,0);
   const totalQty=grpo.reduce((s,r)=>s+r.qty,0);
-  const mayStock=stockArr[5]||stockArr[4]||{totalQty:0,items:[]};
+  // เลือก stock เดือนล่าสุดที่โหลดสำเร็จ (ไม่ใช่แค่ stockArr[5]) — กัน "0 เพราะโหลด error" ปนกับ "0 จริง"
+  let mayStock=stockArr[5], mayUsedFallback=false;
+  if(!mayStock||mayStock.failed){mayStock=stockArr[4];mayUsedFallback=true;}
+  if(!mayStock||mayStock.failed){mayStock={totalQty:null,items:[],failed:true};}
   const mayTotalQty=mayStock.totalQty;
   const maySku=new Set(mayStock.items.map(x=>x.code)).size;
   const mayNear=mayStock.items.filter(x=>x.exp&&(x.exp-now)/31536e6<=0.25);
   const mayNearSku=new Set(mayNear.map(x=>x.code)).size;
-  
+
+  // ── ราคารับเข้าเฉลี่ยถ่วงน้ำหนัก/หน่วย จาก GRPO (ใช้คำนวณมูลค่าสต็อก + มูลค่าเสี่ยงหมดอายุ) ──
+  const grpoPriceMap={};
+  {
+    const _gm={};
+    grpo.forEach(r=>{if(r.code&&r.qty>0&&r.thb>0){
+      if(!_gm[r.code])_gm[r.code]={sv:0,sq:0};
+      _gm[r.code].sv+=r.thb; _gm[r.code].sq+=r.qty;
+    }});
+    Object.keys(_gm).forEach(k=>{const m=_gm[k];grpoPriceMap[k]=m.sq>0?m.sv/m.sq:0;});
+  }
+  const stockQtyByCode=new Map();
+  mayStock.items.forEach(x=>{stockQtyByCode.set(x.code,(stockQtyByCode.get(x.code)||0)+x.qty);});
+  let stockValueTotal=0;
+  stockQtyByCode.forEach((qty,code)=>{stockValueTotal+=(grpoPriceMap[code]||0)*qty;});
+  const nearQtyByCode=new Map();
+  mayNear.forEach(x=>{nearQtyByCode.set(x.code,(nearQtyByCode.get(x.code)||0)+x.qty);});
+  let nearExpValueTotal=0;
+  nearQtyByCode.forEach((qty,code)=>{nearExpValueTotal+=(grpoPriceMap[code]||0)*qty;});
+
   document.getElementById('k1').textContent=fmt(totalThb)+'฿';
   document.getElementById('k2').textContent=fmt(totalQty);
   document.getElementById('k2n').textContent=`${grpo.length} รายการรับเข้า`;
-  document.getElementById('k3').textContent=fmt(mayTotalQty);
+  document.getElementById('k3').textContent=mayStock.failed?'N/A':fmt(mayTotalQty);
   document.getElementById('k4').textContent=mayNearSku;
   document.getElementById('k5').textContent=maySku;
+  document.getElementById('k9').textContent=mayStock.failed?'N/A':fmt(Math.round(stockValueTotal))+'฿';
+  document.getElementById('k10').textContent=mayStock.failed?'N/A':(nearExpValueTotal>0?fmt(Math.round(nearExpValueTotal))+'฿':'0฿');
+  if(mayUsedFallback&&!mayStock.failed){
+    const k3kn=document.querySelector('#k3').parentElement.querySelector('.kn');
+    if(k3kn)k3kn.textContent='⚠️ ใช้ข้อมูลเดือนก่อนหน้า (เดือนล่าสุดโหลดไม่ได้)';
+  }
   document.getElementById('hdrSub').textContent='ม.ค.–มิ.ย. 2026 · อัพเดทอัตโนมัติ';
   
   // ── Month buckets for GRPO ──
@@ -1459,17 +1522,7 @@ function render(grpo,stockArr,issueArr){
   });
   deadStock.sort((a,b)=>b.qty-a.qty);
 
-  // ── Dead stock value from GRPO price map ──
-  // ราคารับเข้า/หน่วย จากชีต GRPO
-  const grpoPriceMap={};
-  {// weighted average unit price จาก GRPO
-    const _gm={};
-    grpo.forEach(r=>{if(r.code&&r.qty>0&&r.thb>0){
-      if(!_gm[r.code])_gm[r.code]={sv:0,sq:0};
-      _gm[r.code].sv+=r.thb; _gm[r.code].sq+=r.qty;
-    }});
-    Object.keys(_gm).forEach(k=>{const m=_gm[k];grpoPriceMap[k]=m.sq>0?m.sv/m.sq:0;});
-  }
+  // (grpoPriceMap คำนวณไว้แล้วตอนต้น render() — ใช้ตัวเดียวกันที่นี่)
 
   // ราคาจ่ายออก/หน่วย จากชีตจ่ายออก (เฉลี่ยถ่วงน้ำหนักจากทุกเดือน)
   const issuePriceMap={};
@@ -1505,6 +1558,22 @@ function render(grpo,stockArr,issueArr){
   const avgStock=nonZeroStock.length>0?nonZeroStock.reduce((s,v)=>s+v,0)/nonZeroStock.length:0;
   const turnover=avgStock>0?(totalIssuedAll/avgStock).toFixed(2):'–';
   document.getElementById('k8').textContent=turnover!=='–'?turnover+'x':'–';
+
+  // ── Executive Summary (สรุปอัตโนมัติสำหรับผู้บริหาร) ──
+  {
+    const execEl=document.getElementById('execSummaryList');
+    if(execEl){
+      const deadPct=stockValueTotal>0?(deadStockVal/stockValueTotal*100):0;
+      const items=[];
+      items.push(`<div class="exec-item">🏦 <span>สต็อกคงเหลือรวม <b style="color:var(--g)">${mayStock.failed?'N/A':fmt(Math.round(stockValueTotal))+'฿'}</b> ${mayStock.failed?'(โหลดข้อมูลเดือนล่าสุดไม่ได้)':'ณ '+(mayStock.moLabel||'เดือนล่าสุด')}</span></div>`);
+      if(!mayStock.failed){
+        items.push(`<div class="exec-item">⚠️ เสี่ยงสูญมูลค่า <b style="color:var(--r)">${fmt(Math.round(nearExpValueTotal))}฿</b> จากสินค้าใกล้หมดอายุ ≤3 เดือน (<b>${mayNearSku}</b> SKU) — ควรเร่งระบายหรือคืนผู้จัดจำหน่าย</div>`);
+      }
+      items.push(`<div class="exec-item">💤 Dead Stock มูลค่า <b style="color:var(--pu)">${fmt(Math.round(deadStockVal))}฿</b> (<b>${deadPct.toFixed(1)}%</b> ของมูลค่าสต็อกทั้งหมด, ${deadStock.length} SKU) — ไม่มีการเบิกจ่ายในช่วงที่ผ่านมา</div>`);
+      items.push(`<div class="exec-item">🔄 Inventory Turnover <b style="color:var(--ac)">${turnover!=='–'?turnover+'x':'–'}</b> ต่อ 6 เดือน — ${turnover!=='–'&&parseFloat(turnover)<1?'ค่อนข้างต่ำ ควรพิจารณาลดสต็อกหรือเร่งจำหน่าย':'อยู่ในเกณฑ์ปกติ'}</div>`);
+      execEl.innerHTML=items.join('');
+    }
+  }
 
   document.getElementById('tDeadStock').innerHTML=deadStock.length
     ?deadStock.slice(0,30).map((x,n)=>{
@@ -1571,7 +1640,7 @@ function render(grpo,stockArr,issueArr){
       {lb:'📦 รับเข้า — จำนวน (หน่วย)', data:moArr.map(m=>fmt(m.qty)), chg:arwN(moArr[0].qty,moArr[5].qty)},
       {lb:'💰 รับเข้า — มูลค่า (฿)', data:moArr.map(m=>fmt(m.thb)), chg:arwN(moArr[0].thb,moArr[5].thb)},
       {lb:'📋 ใบรับเข้า (GRPO) (ใบ)', data:moArr.map(m=>m.cnt||0), chg:arwN(moArr[0].cnt,moArr[5].cnt)},
-      {lb:'🏭 Stock คงเหลือ (หน่วย)', data:stockArr.map(s=>fmt(s.totalQty)), chg:arwU(stockArr[0].totalQty,stockArr[5].totalQty)},
+      {lb:'🏭 Stock คงเหลือ (หน่วย)', data:stockArr.map(s=>s.failed?'<span class="eb ec" style="font-size:.52rem">N/A</span>':fmt(s.totalQty)), chg:(stockArr[0].failed||stockArr[5].failed)?'–':arwU(stockArr[0].totalQty,stockArr[5].totalQty)},
       {lb:'💊 จ่ายออก — จำนวน (หน่วย)', data:issuedTotalByMo.map(v=>fmt(v)), chg:arwU(issuedTotalByMo[0],issuedTotalByMo[5])},
       {lb:'💵 จ่ายออก — มูลค่า (฿)', data:issuedValByMo.map(v=>v>0?fmt(v):'–'), chg:issuedValByMo[0]&&issuedValByMo[5]?arwU(issuedValByMo[0],issuedValByMo[5]):'–'},
       {lb:'💤 Dead Stock (SKU)', data:(()=>{
@@ -1697,6 +1766,14 @@ function render(grpo,stockArr,issueArr){
 }
 
 /* ── Tab helpers ── */
+function showQtyTab(id,btn){
+  document.getElementById('pQtyChart').style.display=id==='qty'?'':'none';
+  document.getElementById('pGrpoChart').style.display=id==='grpo'?'':'none';
+  if(btn){btn.parentElement.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t===btn));}
+  requestAnimationFrame(()=>{
+    try{ charts['cQty']&&charts['cQty'].resize(); charts['cGrpoCount']&&charts['cGrpoCount'].resize(); }catch(e){}
+  });
+}
 function showStockTab(id){
   document.getElementById('pTop').style.display=id==='top'?'':'none';
   document.getElementById('pTrend').style.display=id==='trend'?'':'none';
