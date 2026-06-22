@@ -1,0 +1,1955 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Inventory Dashboard v5.1 — UX Edition</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+/* ===== ROOT =====  */
+:root{
+  --bg:#0d0f18;--card:#141720;--bd:#1e2235;--card2:#191c2a;
+  --ac:#6c8ff8;--g:#56d9a0;--y:#f8c96c;--r:#f8706c;--o:#f8a86c;--pu:#a78bfa;--pk:#f472b6;
+  --tx:#e2e8f0;--mu:#7a8499;--hdr:#0d0f18;
+  --r4:4px;--r8:8px;--r12:12px;
+  --shadow:0 4px 24px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--tx);font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;overflow-x:hidden}
+
+/* ===== STICKY HEADER ===== */
+.hdr{
+  background:rgba(13,15,24,.92);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--bd);
+  padding:8px 18px;display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:300;gap:12px
+}
+.hdr-l{display:flex;align-items:center;gap:10px}
+.live-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;
+  background:rgba(86,217,160,.12);color:var(--g);font-size:.6rem;font-weight:700;
+  border:1px solid rgba(86,217,160,.25);flex-shrink:0}
+.live-dot{width:6px;height:6px;background:var(--g);border-radius:50%;animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.hdr h1{font-size:clamp(.85rem,2vw,1rem);font-weight:800;line-height:1.2}
+.hdr h1 em{color:var(--ac);font-style:normal}
+.hdr-sub{font-size:.58rem;color:var(--mu);margin-top:1px}
+.hdr-r{display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap}
+.hdr-info{font-size:.6rem;color:var(--mu);text-align:right;line-height:1.6}
+.btn{padding:5px 11px;border-radius:var(--r8);font-size:.65rem;font-weight:600;cursor:pointer;
+  white-space:nowrap;transition:all .15s;border:1px solid}
+.btn-ref{background:rgba(108,143,248,.12);color:var(--ac);border-color:rgba(108,143,248,.3)}
+.btn-ref:hover{background:rgba(108,143,248,.28)}
+.btn-dbg{background:rgba(248,201,108,.07);color:var(--y);border-color:rgba(248,201,108,.2)}
+
+/* ===== SECTION NAVIGATION BAR ===== */
+.sec-nav{
+  background:var(--card2);border-bottom:1px solid var(--bd);
+  padding:0 18px;display:flex;align-items:center;gap:0;
+  overflow-x:auto;-webkit-overflow-scrolling:touch;
+  position:sticky;top:46px;z-index:200;
+  scrollbar-width:none
+}
+.sec-nav::-webkit-scrollbar{display:none}
+.snav-btn{
+  padding:9px 14px;font-size:.62rem;font-weight:600;color:var(--mu);
+  border:none;background:transparent;cursor:pointer;white-space:nowrap;
+  border-bottom:2px solid transparent;transition:all .2s;flex-shrink:0
+}
+.snav-btn:hover{color:var(--tx);border-bottom-color:var(--bd)}
+.snav-btn.active{color:var(--ac);border-bottom-color:var(--ac)}
+
+/* ===== BODY & PAGE ===== */
+.page{padding:14px 18px 56px;display:flex;flex-direction:column;gap:0}
+
+/* ===== ZONE (grouped section) ===== */
+.zone{margin-bottom:28px}
+.zone-hd{
+  display:flex;align-items:center;gap:10px;margin-bottom:12px;
+  padding:10px 14px;background:var(--card2);border-radius:var(--r8);
+  border-left:3px solid var(--ac)
+}
+.zone-hd.green{border-left-color:var(--g)}
+.zone-hd.amber{border-left-color:var(--y)}
+.zone-hd.red{border-left-color:var(--r)}
+.zone-hd.violet{border-left-color:var(--pu)}
+.zone-hd.orange{border-left-color:var(--o)}
+.zone-icon{font-size:1rem;line-height:1}
+.zone-title{font-size:.78rem;font-weight:800;color:var(--tx)}
+.zone-sub{font-size:.58rem;color:var(--mu);margin-left:auto}
+
+/* ===== KPI GRID ===== */
+.kpi-row{display:grid;grid-template-columns:repeat(8,1fr);gap:8px}
+.kpi{
+  background:var(--card);border:1px solid var(--bd);border-radius:var(--r12);
+  padding:12px 14px;position:relative;overflow:hidden;
+  transition:transform .15s,box-shadow .15s
+}
+.kpi:hover{transform:translateY(-2px);box-shadow:var(--shadow)}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:var(--r12) var(--r12) 0 0}
+.kpi.bl::before{background:var(--ac)}.kpi.gr::before{background:var(--g)}
+.kpi.yl::before{background:var(--y)}.kpi.rd::before{background:var(--r)}
+.kpi.pu::before{background:var(--pu)}.kpi.or::before{background:var(--o)}
+.ki{position:absolute;right:8px;top:8px;font-size:1.2rem;opacity:.08}
+.kl{font-size:.52rem;color:var(--mu);font-weight:700;text-transform:uppercase;letter-spacing:.5px;line-height:1.3;margin-bottom:3px}
+.kv{font-size:1.25rem;font-weight:900;line-height:1}
+.kv.sm{font-size:.95rem}
+.kn{font-size:.52rem;color:var(--mu);margin-top:3px}
+
+/* ===== ALERT CARDS ===== */
+#alertSummary{display:none;margin-bottom:12px}
+#alertCards{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+
+/* ===== SEARCH ===== */
+.search-card{
+  background:var(--card);border:1px solid var(--bd);border-radius:var(--r12);
+  padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap
+}
+.search-label{font-size:.68rem;color:var(--mu);white-space:nowrap;font-weight:600}
+#searchInput{
+  flex:1;min-width:200px;background:rgba(255,255,255,.05);border:1px solid var(--bd);
+  border-radius:var(--r8);padding:6px 12px;color:var(--tx);font-size:.72rem;
+  outline:none;font-family:inherit;transition:border-color .2s
+}
+#searchInput:focus{border-color:var(--ac)}
+.clear-btn{background:transparent;border:1px solid var(--bd);border-radius:var(--r4);
+  padding:4px 10px;color:var(--mu);font-size:.62rem;cursor:pointer;transition:all .2s}
+.clear-btn:hover{border-color:var(--r);color:var(--r)}
+#searchResult{display:none;margin-top:8px;overflow:auto;max-height:260px;width:100%}
+
+/* ===== CARD ===== */
+.card{
+  background:var(--card);border:1px solid var(--bd);border-radius:var(--r12);
+  padding:14px;display:flex;flex-direction:column;overflow:hidden
+}
+.ct{font-size:.75rem;font-weight:700;margin-bottom:2px;flex-shrink:0}
+.cs{font-size:.58rem;color:var(--mu);margin-bottom:8px;flex-shrink:0}
+.cnote{
+  font-size:.58rem;color:var(--mu);padding:3px 8px;
+  background:rgba(108,143,248,.07);border-radius:var(--r4);
+  border:1px solid rgba(108,143,248,.12);margin-bottom:8px;flex-shrink:0
+}
+
+/* ===== CHART CONTAINER ===== */
+.ch{position:relative;flex:1;min-height:130px}
+.ch canvas{position:absolute;inset:0;width:100%!important;height:100%!important}
+
+/* ===== TABLES ===== */
+.tw{overflow:auto;flex:1;min-height:0}
+table{width:100%;border-collapse:collapse;font-size:.68rem}
+th{
+  padding:7px 8px;color:var(--mu);font-weight:700;font-size:.55rem;
+  text-transform:uppercase;letter-spacing:.4px;
+  border-bottom:1px solid var(--bd);text-align:left;white-space:nowrap;
+  position:sticky;top:0;background:var(--card);z-index:1
+}
+td{padding:7px 8px;border-bottom:1px solid rgba(30,34,53,.5);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,.025)}
+.rk{color:var(--mu);font-weight:800;text-align:center;width:20px;font-size:.6rem}
+.code{color:var(--ac);font-weight:700;font-family:monospace;font-size:.68rem}
+.nm{color:var(--mu);font-size:.57rem;line-height:1.3}
+.num{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.br-row{display:flex;align-items:center;gap:4px}
+.bar-fill{height:4px;border-radius:3px;background:var(--ac);opacity:.55;flex-shrink:0}
+
+/* ===== EXPIRY BADGES ===== */
+.eb{display:inline-block;padding:2px 7px;border-radius:var(--r4);font-size:.58rem;font-weight:700;white-space:nowrap}
+.ec{background:rgba(248,112,108,.2);color:var(--r);border:1px solid rgba(248,112,108,.3)}
+.ew{background:rgba(248,168,108,.2);color:var(--o);border:1px solid rgba(248,168,108,.3)}
+.eo{background:rgba(248,201,108,.2);color:var(--y);border:1px solid rgba(248,201,108,.3)}
+
+/* ===== TABS ===== */
+.tabs{display:flex;gap:5px;margin-bottom:8px;flex-shrink:0;flex-wrap:wrap}
+.tab{padding:4px 12px;border-radius:20px;font-size:.62rem;font-weight:600;
+  border:1px solid var(--bd);color:var(--mu);background:transparent;cursor:pointer;
+  transition:all .15s}
+.tab:hover{border-color:var(--ac);color:var(--ac)}
+.tab.on{background:rgba(108,143,248,.18);color:var(--ac);border-color:rgba(108,143,248,.4)}
+
+/* ===== TREND GRID ===== */
+.trend-grid{display:grid;grid-template-columns:auto repeat(6,1fr);gap:3px;font-size:.6rem;margin-top:6px}
+.trend-h{color:var(--mu);font-size:.55rem;font-weight:700;text-align:center;padding:2px 0}
+.trend-code{color:var(--ac);font-family:monospace;font-size:.6rem;padding:2px 4px}
+.trend-val{text-align:right;padding:2px 3px;font-variant-numeric:tabular-nums;border-radius:3px}
+.trend-hi{background:rgba(86,217,160,.1);color:var(--g)}
+.trend-lo{background:rgba(248,112,108,.08);color:var(--r)}
+
+/* ===== GRIDS ===== */
+.grid-2eq{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.grid-2{display:grid;grid-template-columns:1.6fr 1fr;gap:8px}
+.grid-3{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:8px;min-height:220px}
+.grid-4{display:grid;grid-template-columns:1.5fr 1fr 1fr 1.2fr;gap:8px;min-height:200px}
+
+/* ===== LOADING / ERROR / DEBUG ===== */
+#loading{display:flex;flex-direction:column;align-items:center;justify-content:center;height:calc(100vh - 50px);gap:14px}
+.spin{width:38px;height:38px;border:3px solid var(--bd);border-top-color:var(--ac);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.prog-wrap{width:220px;height:5px;background:var(--bd);border-radius:5px;overflow:hidden}
+.prog-fill{height:100%;background:var(--ac);border-radius:5px;transition:width .3s}
+#loadStatus{color:var(--mu);font-size:.75rem}
+#err{display:none;margin:20px}
+#err .ebox{background:rgba(248,112,108,.08);border:1px solid rgba(248,112,108,.25);border-radius:var(--r12);padding:18px;font-size:.8rem;line-height:1.8;color:var(--r)}
+#dbgPanel{display:none;background:#0a0c14;border:1px solid var(--bd);border-radius:var(--r12);padding:13px;font-size:.65rem;margin:0 18px 10px;overflow-x:auto}
+#dbgPanel h3{color:var(--y);margin-bottom:6px;font-size:.7rem}
+#dbgPanel pre{color:var(--mu);white-space:pre-wrap;word-break:break-all;max-height:350px;overflow-y:auto}
+#main{display:none}
+
+/* ===== RESPONSIVE ===== */
+@media(max-width:1400px){.kpi-row{grid-template-columns:repeat(4,1fr)}}
+@media(max-width:1200px){.grid-4{grid-template-columns:1fr 1fr};.kpi-row{grid-template-columns:repeat(4,1fr)}}
+@media(max-width:900px){
+  .grid-3,.grid-2,.grid-2eq{grid-template-columns:1fr}
+  .kpi-row{grid-template-columns:1fr 1fr 1fr}
+  .sec-nav{top:48px}
+  #alertCards{grid-template-columns:1fr}
+}
+@media(max-width:600px){.kpi-row{grid-template-columns:1fr 1fr}}
+
+/* ===== PRINT ===== */
+@media print{
+  .hdr,.sec-nav{position:relative!important;background:#fff;color:#000;border:none;backdrop-filter:none}
+  .live-badge,.btn,.live-dot{display:none!important}
+  body{background:#fff!important;color:#000!important}
+  .card,.kpi{background:#f8f8f8!important;border-color:#ddd!important}
+  .zone-hd{background:#f0f0f0!important}
+  .page{padding:0}
+}
+
+/* ===== SCROLLBAR ===== */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--bd);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--mu)}
+</style>
+</head>
+<body>
+
+<!-- ===== STICKY HEADER ===== -->
+<div class="hdr">
+  <div class="hdr-l">
+    <div class="live-badge"><span class="live-dot"></span>LIVE</div>
+    <div>
+      <h1>รับสินค้า &amp; <em>Inventory</em> Dashboard
+        <span id="ver-badge" style="font-size:10px;font-weight:500;color:var(--y);margin-left:8px">v5.1</span>
+      </h1>
+      <div class="hdr-sub" id="hdrSub">กำลังโหลด...</div>
+    </div>
+  </div>
+  <div class="hdr-r">
+    <div class="hdr-info">
+      <div id="lastUpdate">–</div>
+      <div style="display:flex;align-items:center;gap:5px;margin-top:2px">
+        <span style="font-size:.52rem;color:var(--mu)">USD=</span>
+        <input id="rateUSD" type="number" value="35" min="1" max="999" step="0.5"
+          style="width:40px;background:rgba(255,255,255,.06);border:1px solid var(--bd);border-radius:var(--r4);color:var(--y);font-size:.58rem;padding:1px 4px;text-align:center;outline:none;font-family:inherit"
+          onchange="updateRates()">
+        <span style="font-size:.52rem;color:var(--mu)">฿ &middot; EUR=</span>
+        <input id="rateEUR" type="number" value="38" min="1" max="999" step="0.5"
+          style="width:40px;background:rgba(255,255,255,.06);border:1px solid var(--bd);border-radius:var(--r4);color:var(--y);font-size:.58rem;padding:1px 4px;text-align:center;outline:none;font-family:inherit"
+          onchange="updateRates()">
+        <span style="font-size:.52rem;color:var(--mu)">฿</span>
+      </div>
+    </div>
+    <button class="btn" onclick="window.print()" style="background:rgba(86,217,160,.1);color:var(--g);border-color:rgba(86,217,160,.25)">🖨️ Print</button>
+    <button class="btn btn-dbg" onclick="toggleDebug()">🔍 Debug</button>
+    <button class="btn btn-ref" onclick="loadData()">🔄 Refresh</button>
+  </div>
+</div>
+
+<!-- ===== SECTION NAVIGATION ===== -->
+<nav class="sec-nav" aria-label="Section Navigation">
+  <button class="snav-btn" onclick="scrollTo('#zone-overview')">📊 ภาพรวม</button>
+  <button class="snav-btn" onclick="scrollTo('#zone-receiving')">📥 รับเข้า</button>
+  <button class="snav-btn" onclick="scrollTo('#zone-stock')">📦 Stock</button>
+  <button class="snav-btn" onclick="scrollTo('#zone-issued')">📤 จำหน่ายออก</button>
+  <button class="snav-btn" onclick="scrollTo('#zone-alert')">⚠️ แจ้งเตือน</button>
+  <button class="snav-btn" onclick="scrollTo('#zone-analysis')">📐 วิเคราะห์</button>
+  <button class="snav-btn" onclick="scrollTo('#zone-ops')">🏭 ปฏิบัติการ</button>
+</nav>
+
+<!-- ===== LOADING / ERROR / DEBUG ===== -->
+<div id="loading">
+  <div class="spin"></div>
+  <div id="loadStatus">กำลังเริ่มโหลด...</div>
+  <div class="prog-wrap"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
+</div>
+<div id="err"><div class="ebox"><b>⚠️ โหลดไม่ได้ —</b> <span id="errMsg"></span><br>กด 🔍 Debug เพื่อดูรายละเอียด</div></div>
+<div id="dbgPanel"><h3>🔍 Debug</h3><pre id="dbgText">–</pre></div>
+
+<!-- ===== MAIN CONTENT ===== -->
+<div id="main">
+<div class="page">
+
+<!-- ===== ZONE: ภาพรวม (Overview KPIs) ===== -->
+<div class="zone" id="zone-overview">
+
+  <!-- KPI Row (8 cards) -->
+  <div class="kpi-row" style="margin-bottom:12px">
+    <div class="kpi bl"><div class="ki">💰</div><div class="kl">มูลค่ารับเข้า 6 เดือน</div><div class="kv sm" id="k1">–</div><div class="kn">ม.ค.–มิ.ย. 2026 (฿ equiv)</div></div>
+    <div class="kpi gr"><div class="ki">📥</div><div class="kl">จำนวนรับเข้า 6 เดือน</div><div class="kv sm" id="k2">–</div><div class="kn" id="k2n">รายการทั้งหมด</div></div>
+    <div class="kpi yl"><div class="ki">📦</div><div class="kl">Stock คงเหลือ มิ.ย.</div><div class="kv sm" id="k3">–</div><div class="kn">หน่วยรวมทุก SKU (JUN-2026)</div></div>
+    <div class="kpi rd"><div class="ki">⚠️</div><div class="kl">ใกล้หมดอายุ ≤3 เดือน</div><div class="kv" id="k4">–</div><div class="kn">SKU จาก Stock มิ.ย.</div></div>
+    <div class="kpi pu"><div class="ki">🔢</div><div class="kl">SKU ในคลัง มิ.ย.</div><div class="kv" id="k5">–</div><div class="kn">รหัสสินค้าทั้งหมด</div></div>
+    <div class="kpi or"><div class="ki">💤</div><div class="kl">Dead Stock</div><div class="kv" id="k6">–</div><div class="kn" id="k6n">SKU ไม่มีการเบิกจ่าย</div></div>
+    <div class="kpi gr"><div class="ki">💊</div><div class="kl">จ่ายออก มิ.ย.</div><div class="kv" id="k7">–</div><div class="kn">หน่วย (เดือนล่าสุด)</div></div>
+    <div class="kpi bl"><div class="ki">🔄</div><div class="kl">Inventory Turnover</div><div class="kv sm" id="k8">–</div><div class="kn">รอบ/6 เดือน (จ่าย÷avg stock)</div></div>
+  </div>
+
+  <!-- Alert Banner -->
+  <div id="alertSummary">
+    <div style="font-size:.7rem;font-weight:800;color:var(--r);padding:6px 0 8px;display:flex;align-items:center;gap:6px">
+      <span>🔔</span><span>แจ้งเตือน — รายการที่ต้องดำเนินการ</span>
+    </div>
+    <div id="alertCards"></div>
+  </div>
+
+  <!-- Search -->
+  <div class="search-card">
+    <span class="search-label">🔍 ค้นหาสินค้า</span>
+    <input id="searchInput" type="text" placeholder="พิมพ์ Item Code หรือชื่อสินค้า..." oninput="doSearch(this.value)">
+    <button class="clear-btn" onclick="clearSearch()">✕ ล้าง</button>
+    <div id="searchResult">
+      <table>
+        <thead><tr>
+          <th>Item Code</th><th>ชื่อสินค้า</th>
+          <th><div style="display:flex;gap:6px;align-items:center">
+            <span style="min-width:84px">LOT</span>
+            <span style="min-width:72px">EXP</span>
+            <span style="min-width:44px;text-align:right">จำนวน</span>
+            <span style="min-width:56px">คลัง</span>
+          </div></th>
+          <th class="num">Stock รวม</th><th class="num">จ่ายออก รวม</th>
+          <th class="num">ราคาจ่าย/หน่วย</th><th>สถานะ</th>
+        </tr></thead>
+        <tbody id="searchBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Monthly KPI Summary Table -->
+  <div class="zone-hd" style="margin-bottom:10px">
+    <span class="zone-icon">📋</span>
+    <span class="zone-title">Monthly KPI Summary — ม.ค.–มิ.ย. 2026</span>
+  </div>
+  <div class="card" style="overflow-x:auto;margin-bottom:0">
+    <table id="tMonthlySummary" style="width:100%;border-collapse:collapse;font-size:.62rem">
+      <thead id="tMonthlySummaryHead"></thead>
+      <tbody id="tMonthlySummaryBody"></tbody>
+    </table>
+  </div>
+
+</div><!-- /zone-overview -->
+
+<!-- ===== ZONE: รับเข้า (Receiving) ===== -->
+<div class="zone" id="zone-receiving">
+  <div class="zone-hd green">
+    <span class="zone-icon">📥</span>
+    <span class="zone-title">สรุปรับสินค้าเข้า</span>
+    <span class="zone-sub">ม.ค.–มิ.ย. 2026</span>
+  </div>
+
+  <!-- Trend charts (line/bar) -->
+  <div class="grid-4" style="margin-bottom:8px">
+    <div class="card">
+      <div class="ct">มูลค่าสินค้ารับเข้า (฿ equiv)</div>
+      <div class="cs">แยกสกุลเงิน · รายเดือน</div>
+      <div class="cnote">⚠️ USD=35฿ · EUR=38฿ (ปรับได้ที่ header)</div>
+      <div class="ch"><canvas id="cVal"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="ct">Stock คงเหลือ ณ สิ้นเดือน</div>
+      <div class="cs">ม.ค.–มิ.ย. 2026 (รวมทุก SKU)</div>
+      <div class="ch"><canvas id="cStock"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="ct">จำนวนรับเข้า (หน่วย)</div>
+      <div class="cs">Month-over-Month</div>
+      <div class="ch"><canvas id="cQty"></canvas></div>
+      <div class="ch"><canvas id="cGrpoCount"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="ct">Top 8 ผู้จัดจำหน่าย</div>
+      <div class="cs">มูลค่าเทียบเท่าบาทรวม 6 เดือน</div>
+      <div class="ch"><canvas id="cSupp"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Top 10 GR + Top Stock -->
+  <div class="grid-2" style="margin-bottom:8px">
+    <div class="card" style="min-height:280px">
+      <div class="ct">🏆 Top 10 สินค้ารับเข้า — ม.ค.–มิ.ย. 2026</div>
+      <div class="cs">เรียงมูลค่าเทียบเท่าบาทรวม</div>
+      <div class="tw">
+        <table><thead><tr>
+          <th>#</th><th>Item / ชื่อสินค้า</th>
+          <th class="num">มูลค่า (฿)</th><th class="num">จำนวน</th>
+          <th>%<div style="font-size:.45rem;font-weight:400;color:var(--mu)">เทียบ #1</div></th>
+        </tr></thead>
+        <tbody id="tTop10GR"></tbody></table>
+      </div>
+    </div>
+
+    <div class="card" style="min-height:280px">
+      <div class="ct">📦 Top Stock คงเหลือ — ม.ค.–มิ.ย. 2026</div>
+      <div class="cs">Top 10 SKU ณ มิ.ย. เรียงตามจำนวน</div>
+      <div class="tabs">
+        <button class="tab on" onclick="showStockTab('top')">📦 Top SKU</button>
+        <button class="tab" onclick="showStockTab('trend')">📈 Trend 6 เดือน</button>
+        <button class="tab" onclick="showStockTab('vendor')">🏢 By Vendor</button>
+      </div>
+      <div id="pTop" class="tw">
+        <table><thead><tr>
+          <th>#</th><th>Item / ชื่อสินค้า</th>
+          <th class="num">Stock มิ.ย.</th><th class="num">EXP</th>
+        </tr></thead>
+        <tbody id="tTopStock"></tbody></table>
+      </div>
+      <div id="pTrend" class="tw" style="display:none">
+        <div class="ct" style="font-size:.62rem;color:var(--mu);margin-bottom:5px">Top 10 SKU — stock รายเดือน (หน่วย)</div>
+        <div id="trendGrid" class="tw" style="margin-top:6px"></div>
+      </div>
+      <div id="pVendor" style="display:none;flex:1;min-height:0">
+        <div class="ct" style="font-size:.62rem;color:var(--mu);margin-bottom:5px">Top Vendor — Stock คงเหลือ ณ มิ.ย. 2026</div>
+        <div class="ch" style="min-height:200px"><canvas id="cVendorStock"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /zone-receiving -->
+
+<!-- ===== ZONE: Stock ===== -->
+<div class="zone" id="zone-stock">
+  <div class="zone-hd amber">
+    <span class="zone-icon">📦</span>
+    <span class="zone-title">สต็อคคงเหลือ &amp; การเคลื่อนไหว</span>
+    <span class="zone-sub">ณ มิ.ย. 2026</span>
+  </div>
+
+  <!-- WH Breakdown -->
+  <div class="card" style="margin-bottom:8px;padding:14px 16px">
+    <div class="ct" style="margin-bottom:8px">🏭 จำนวนสินค้าแต่ละคลัง — Stock มิ.ย. 2026 (WH Code)</div>
+    <div style="display:flex;gap:16px;align-items:flex-start">
+      <div style="flex:1;min-height:220px"><canvas id="cWhStock"></canvas></div>
+      <div id="whStockLegend" style="min-width:140px;font-size:.6rem;color:var(--mu);line-height:1.8"></div>
+    </div>
+  </div>
+
+  <!-- In/Out comparison -->
+  <div class="grid-2eq" style="min-height:220px;margin-bottom:0">
+    <div class="card">
+      <div class="ct">📦 จำนวน (หน่วย) — รับเข้า vs จ่ายออก</div>
+      <div class="cs">แต่ละเดือนรับเข้ามากกว่าหรือน้อยกว่าที่จ่ายออก</div>
+      <div class="ch"><canvas id="cInOutQty"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="ct">💰 มูลค่า (฿) — รับเข้า vs จ่ายออก</div>
+      <div class="cs">เปรียบเทียบมูลค่ารับเข้า (GRPO) และมูลค่าจ่ายออก (ชีตจ่ายออก)</div>
+      <div class="ch"><canvas id="cInOutVal"></canvas></div>
+    </div>
+  </div>
+
+</div><!-- /zone-stock -->
+
+<!-- ===== ZONE: จำหน่ายออก (Issued) ===== -->
+<div class="zone" id="zone-issued">
+  <div class="zone-hd violet">
+    <span class="zone-icon">📤</span>
+    <span class="zone-title">สินค้าจำหน่ายออก</span>
+    <span class="zone-sub">ม.ค.–มิ.ย. 2026</span>
+  </div>
+
+  <div class="grid-2eq" style="min-height:380px">
+    <div class="card">
+      <div class="ct">Top 10 สินค้าจำหน่ายออก</div>
+      <div class="cs">Stack bar รวม ก.พ.–มิ.ย. 2026</div>
+      <div class="ch" style="min-height:320px"><canvas id="cIssuedStack"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="ct">รายละเอียดจำหน่ายออก</div>
+      <div class="cs">ม.ค.–มิ.ย. 2026 — แต่ละช่อง: <span style="color:var(--tx)">จำนวน (หน่วย)</span> / <span style="color:var(--y)">มูลค่า (฿)</span></div>
+      <div class="tw">
+        <table>
+          <thead><tr>
+            <th>#</th><th>ITEM / ชื่อสินค้า</th>
+            <th class="num">ม.ค.<div style="font-size:.45rem;font-weight:400;color:var(--y)">มูลค่า</div></th>
+            <th class="num">ก.พ.<div style="font-size:.45rem;font-weight:400;color:var(--y)">มูลค่า</div></th>
+            <th class="num">มี.ค.<div style="font-size:.45rem;font-weight:400;color:var(--y)">มูลค่า</div></th>
+            <th class="num">เม.ย.<div style="font-size:.45rem;font-weight:400;color:var(--y)">มูลค่า</div></th>
+            <th class="num">พ.ค.<div style="font-size:.45rem;font-weight:400;color:var(--y)">มูลค่า</div></th>
+            <th class="num">มิ.ย.<div style="font-size:.45rem;font-weight:400;color:var(--y)">มูลค่า</div></th>
+            <th class="num" style="color:var(--g)">รวม<div style="font-size:.45rem;font-weight:400;color:var(--y)">มูลค่า</div></th>
+          </tr></thead>
+          <tbody id="tIssuedDetail"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /zone-issued -->
+
+<!-- ===== ZONE: แจ้งเตือน (Alerts) ===== -->
+<div class="zone" id="zone-alert">
+  <div class="zone-hd red">
+    <span class="zone-icon">⚠️</span>
+    <span class="zone-title">การแจ้งเตือนสำคัญ</span>
+    <span class="zone-sub">ณ มิ.ย. 2026</span>
+  </div>
+
+  <!-- Expiry Status -->
+  <div class="grid-2eq" style="margin-bottom:8px">
+    <div class="card" style="min-height:220px">
+      <div class="tabs">
+        <button class="tab on" onclick="showExpTab('near')">⚠️ ใกล้หมดอายุ (<span id="nearCnt">–</span>)</button>
+        <button class="tab" onclick="showExpTab('long')">✅ อายุยาว (<span id="longCnt">–</span>)</button>
+      </div>
+      <div id="pNear" class="tw">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+          <span style="font-size:.6rem;color:var(--mu)">สินค้าที่จะหมดอายุภายใน 3 เดือน</span>
+          <button onclick="downloadNearExp()" style="background:rgba(248,112,108,.12);color:var(--r);border:1px solid rgba(248,112,108,.3);border-radius:var(--r4);padding:3px 9px;font-size:.58rem;cursor:pointer">📥 Export CSV</button>
+        </div>
+        <table><thead><tr><th>#</th><th>สินค้า (Item No.)</th><th>EXP</th><th>สถานะ</th></tr></thead>
+        <tbody id="tNear"></tbody></table>
+      </div>
+      <div id="pLong" class="tw" style="display:none">
+        <table><thead><tr><th>#</th><th>สินค้า</th><th>EXP</th><th>เหลือ</th></tr></thead>
+        <tbody id="tLong"></tbody></table>
+      </div>
+    </div>
+    <div class="card" style="min-height:220px">
+      <div class="ct">📊 สัดส่วนสถานะอายุสินค้า (SKU)</div>
+      <div class="cs">แยกตาม Remaining Year ณ มิ.ย. 2026</div>
+      <div class="ch"><canvas id="cExpPie"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Stock Coverage -->
+  <div class="grid-2eq" style="min-height:280px;margin-bottom:8px">
+    <div class="card">
+      <div class="ct">⚠️ สินค้าเสี่ยง Stock หมด (Coverage &lt; 2 เดือน) <span id="covCount" style="font-size:.62rem;font-weight:400;color:var(--mu)"></span></div>
+      <div class="cs">stock มิ.ย. ÷ avg จำหน่ายออก/เดือน (เฉพาะเดือนที่มีข้อมูล)</div>
+      <div class="tw">
+        <table>
+          <thead><tr>
+            <th>#</th><th>ITEM / ชื่อสินค้า</th>
+            <th class="num">Stock มิ.ย.</th><th class="num">avg/เดือน</th>
+            <th class="num">เหลือ (เดือน)</th>
+            <th class="num">สั่งเพิ่ม<div style="font-size:.5rem;font-weight:400;color:var(--mu)">(target 3 เดือน)</div></th>
+          </tr></thead>
+          <tbody id="tCoverage"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="ct">Coverage Distribution</div>
+      <div class="cs">กระจาย SKU ตามเดือนที่สต็อกพอ</div>
+      <div class="ch"><canvas id="cCoverage"></canvas></div>
+    </div>
+  </div>
+
+  <!-- FEFO Alert -->
+  <div class="card" style="min-height:260px;margin-bottom:0">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;flex-shrink:0;margin-bottom:8px">
+      <div>
+        <div class="ct">🧊 FEFO Alert — LOT ที่ควรจ่ายออกก่อน (First Expired First Out)</div>
+        <div class="cs">LOT ที่มี Stock คงเหลือ เรียงตาม EXP ใกล้สุด — จ่ายออก LOT เหล่านี้ก่อนเพื่อลดของหมดอายุ</div>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <label style="font-size:.6rem;color:var(--mu)">แสดงเฉพาะ:</label>
+        <select id="fefoFilter" onchange="renderFEFO()" style="background:var(--card);border:1px solid var(--bd);color:var(--tx);border-radius:var(--r4);padding:2px 6px;font-size:.6rem;cursor:pointer">
+          <option value="all">ทั้งหมด</option>
+          <option value="expired">⛔ หมดแล้ว</option>
+          <option value="3m">🔴 &lt;3 เดือน</option>
+          <option value="6m">🟠 &lt;6 เดือน</option>
+          <option value="9m">🟡 &lt;9 เดือน</option>
+        </select>
+        <button onclick="downloadFEFO()" style="background:rgba(108,143,248,.12);color:var(--ac);border:1px solid rgba(108,143,248,.3);border-radius:var(--r4);padding:3px 9px;font-size:.58rem;cursor:pointer">📥 Export FEFO CSV</button>
+      </div>
+    </div>
+    <div class="tw">
+      <table>
+        <thead><tr>
+          <th>#</th><th>Item Code / ชื่อสินค้า</th><th>LOT / Batch</th>
+          <th class="num">EXP</th><th class="num">อายุเหลือ</th>
+          <th class="num">Stock (หน่วย)</th><th class="num">คลัง</th><th>สถานะ FEFO</th>
+        </tr></thead>
+        <tbody id="tFEFO"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div><!-- /zone-alert -->
+
+<!-- ===== ZONE: วิเคราะห์ (Analysis) ===== -->
+<div class="zone" id="zone-analysis">
+  <div class="zone-hd orange">
+    <span class="zone-icon">📐</span>
+    <span class="zone-title">ABC Analysis &amp; Dead Stock</span>
+    <span class="zone-sub">ม.ค.–มิ.ย. 2026</span>
+  </div>
+
+  <!-- ABC Analysis -->
+  <div class="grid-2eq" style="min-height:300px;margin-bottom:8px">
+    <div class="card">
+      <div class="ct">สัดส่วน SKU แต่ละกลุ่ม A / B / C</div>
+      <div class="cs">A = 80% มูลค่า · B = 15% · C = 5% รวม</div>
+      <div id="abcKpiRow" style="display:flex;gap:8px;margin-bottom:8px;flex-shrink:0"></div>
+      <div class="ch" style="min-height:200px"><canvas id="cABC"></canvas></div>
+    </div>
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;flex-shrink:0">
+        <div>
+          <div class="ct">รายการ ABC — สินค้าทุกกลุ่ม</div>
+          <div class="cs">เรียงตามมูลค่าจ่ายออกสะสม ม.ค.–มิ.ย. 2026</div>
+        </div>
+        <div style="display:flex;gap:5px">
+          <button onclick="filterABC('all')" id="abcAll" class="tab on" style="font-size:.55rem;padding:2px 8px">ทั้งหมด</button>
+          <button onclick="filterABC('A')" id="abcA" class="tab" style="font-size:.55rem;padding:2px 8px;color:var(--g)">A</button>
+          <button onclick="filterABC('B')" id="abcB" class="tab" style="font-size:.55rem;padding:2px 8px;color:var(--y)">B</button>
+          <button onclick="filterABC('C')" id="abcC" class="tab" style="font-size:.55rem;padding:2px 8px;color:var(--mu)">C</button>
+          <button onclick="downloadABC()" style="background:rgba(86,217,160,.1);color:var(--g);border:1px solid rgba(86,217,160,.25);border-radius:var(--r4);padding:2px 8px;font-size:.55rem;cursor:pointer">📥 CSV</button>
+        </div>
+      </div>
+      <div class="tw" style="margin-top:6px">
+        <table>
+          <thead><tr>
+            <th>#</th><th>ITEM / ชื่อสินค้า</th>
+            <th class="num">มูลค่าจ่ายออก (฿)</th>
+            <th class="num">สะสม%</th><th>กลุ่ม</th>
+          </tr></thead>
+          <tbody id="tABC"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dead Stock -->
+  <div class="card" style="min-height:250px;margin-bottom:0">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;flex-shrink:0">
+      <div>
+        <div class="ct">💤 Dead Stock / Slow Moving — สินค้าที่ไม่มีการจำหน่ายออก ก.พ.–มิ.ย. 2026</div>
+        <div class="cs">มี Stock คงเหลือแต่ไม่มีการเบิกจ่าย — ควรตรวจสอบเพื่อ Return / Dispose</div>
+      </div>
+      <button onclick="downloadDeadStock()" style="background:rgba(167,139,250,.12);color:var(--pu);border:1px solid rgba(167,139,250,.3);border-radius:var(--r4);padding:3px 9px;font-size:.58rem;cursor:pointer">📥 Export CSV</button>
+    </div>
+    <div class="tw" style="margin-top:6px">
+      <table>
+        <thead><tr>
+          <th>#</th><th>ITEM / ชื่อสินค้า</th>
+          <th class="num">Stock มิ.ย.</th>
+          <th class="num">ราคา/หน่วย<div style="font-size:.5rem;font-weight:400;color:var(--mu)">GRPO (฿)</div></th>
+          <th class="num">มูลค่ารวม<div style="font-size:.5rem;font-weight:400;color:var(--mu)">ประมาณ (฿)</div></th>
+          <th class="num">คลัง</th>
+          <th class="num">EXP (ใกล้สุด)</th>
+          <th class="num">อายุเหลือ</th>
+          <th>สถานะ</th>
+        </tr></thead>
+        <tbody id="tDeadStock"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div><!-- /zone-analysis -->
+
+<!-- ===== ZONE: ปฏิบัติการ (Operations) ===== -->
+<div class="zone" id="zone-ops">
+  <div class="zone-hd">
+    <span class="zone-icon">🏭</span>
+    <span class="zone-title">ประสิทธิภาพการตรวจรับ &amp; Cold Chain</span>
+    <span class="zone-sub">ม.ค.–มิ.ย. 2026</span>
+  </div>
+
+  <!-- Receiving Performance -->
+  <div class="grid-3" style="min-height:230px;margin-bottom:8px">
+    <div class="card">
+      <div class="ct">เวลาตรวจรับเฉลี่ย — รายเดือน</div>
+      <div class="cs">Total/Time Min (ตรวจรับ)</div>
+      <div class="ch"><canvas id="cTimeMonth"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="ct">Top Supplier — เวลาตรวจรับนานสุด</div>
+      <div class="cs">เฉลี่ย นาที/ครั้ง</div>
+      <div class="ch"><canvas id="cTimeSupp"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="ct">KPI สรุปการตรวจรับ</div>
+      <div class="cs">ม.ค.–มิ.ย. 2026</div>
+      <div id="perfKpiWrap" style="display:flex;flex-direction:column;gap:6px;margin-top:6px"></div>
+    </div>
+  </div>
+
+  <!-- Cold Chain / Import Type -->
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;min-height:220px">
+    <div class="card">
+      <div class="ct">🌡️ สัดส่วน TempControl</div>
+      <div class="cs">SKU ที่ต้องควบคุมอุณหภูมิ vs ปกติ (จาก GRPO)</div>
+      <div class="ch"><canvas id="cTempPie"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="ct">Import Type Breakdown</div>
+      <div class="cs">แยกประเภทการนำเข้า ม.ค.–มิ.ย. 2026</div>
+      <div class="ch"><canvas id="cImportPie"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="ct">📍 สถานที่รับเข้า</div>
+      <div class="cs">จำนวนใบรับเข้าตามสถานที่ ม.ค.–มิ.ย. 2026</div>
+      <div class="ch"><canvas id="cPlacePie"></canvas></div>
+    </div>
+  </div>
+
+</div><!-- /zone-ops -->
+
+</div><!-- /page -->
+</div><!-- /main -->
+
+<script>
+// ===== SECTION NAVIGATION HELPER =====
+function scrollTo(id){
+  const el=document.querySelector(id);
+  if(el){
+    const offset=100; // header + nav height
+    const top=el.getBoundingClientRect().top+window.pageYOffset-offset;
+    window.scrollTo({top,behavior:'smooth'});
+  }
+}
+// Highlight active section in nav on scroll
+(function(){
+  const zones=['zone-overview','zone-receiving','zone-stock','zone-issued','zone-alert','zone-analysis','zone-ops'];
+  const btns=document.querySelectorAll('.snav-btn');
+  function onScroll(){
+    const scrollY=window.pageYOffset+130;
+    let active=0;
+    zones.forEach((id,i)=>{
+      const el=document.getElementById(id);
+      if(el&&el.offsetTop<=scrollY)active=i;
+    });
+    btns.forEach((b,i)=>{b.classList.toggle('active',i===active)});
+  }
+  window.addEventListener('scroll',onScroll,{passive:true});
+  onScroll();
+})();
+</script>
+
+<script>
+const SHEET_ID='1NlNRWBiGudYeNwiF8bECrnMiotvQZUh17j0n-GBBdho';
+const GRPO_GID='517994942';
+const STOCK_SHEETS=['JAN-2026','FEB-2026','MAR-2026','APR-2026','MAY-2026','JUN-2026'];
+const MO_LABELS=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.'];
+const MO_FULL=['ม.ค. 2026','ก.พ. 2026','มี.ค. 2026','เม.ย. 2026','พ.ค. 2026','มิ.ย. 2026'];
+let USD=35,EUR=38;
+function updateRates(){
+  const u=parseFloat(document.getElementById('rateUSD').value)||35;
+  const e=parseFloat(document.getElementById('rateEUR').value)||38;
+  USD=u; EUR=e;
+  loadData();
+}
+const C5=['rgba(108,143,248,.8)','rgba(86,217,160,.8)','rgba(248,201,108,.8)','rgba(248,112,108,.8)','rgba(167,139,250,.8)'];
+const GRD='#191c2a';
+const TIP={backgroundColor:'#141720',borderColor:'#1e2235',borderWidth:1,titleColor:'#e2e8f0',bodyColor:'#7a8499',padding:9,titleFont:{size:10},bodyFont:{size:10}};
+let charts={};
+let _dbg={};
+
+/* ── JSONP loader ── */
+if(!window.google)window.google={};
+if(!window.google.visualization)window.google.visualization={};
+window.google.visualization.Query={setResponse:function(r){if(window._gvizCb){window._gvizCb(r);window._gvizCb=null;}}};
+
+function loadJsonp(sheetName,gid){
+  return new Promise((resolve,reject)=>{
+    window._gvizCb=resolve;
+    const old=document.getElementById('__gviz__');if(old)old.remove();
+    const s=document.createElement('script');s.id='__gviz__';
+    const p=gid?`gid=${gid}`:`sheet=${encodeURIComponent(sheetName)}`;
+    s.src=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&${p}&t=${Date.now()}`;
+    s.onerror=()=>{window._gvizCb=null;reject(new Error(`โหลด ${sheetName||'GRPO'}ไม่ได้`));};
+    setTimeout(()=>{if(window._gvizCb){window._gvizCb=null;reject(new Error(`Timeout: ${sheetName||'GRPO'}`));}},12000);
+    document.head.appendChild(s);
+  });
+}
+
+/* ── Utility ── */
+const fmt=n=>n>=1e9?(n/1e9).toFixed(1)+'B':n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?Math.round(n/1e3)+'K':Math.round(n).toLocaleString();
+const fmtD=d=>!d?'–':`${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`;
+const lbl=(s,m)=>s&&s.length>m?s.slice(0,m)+'…':s||'–';
+const tickCb=cb=>{const t={color:'#7a8499',font:{size:9}};if(cb)t.callback=cb;return t;};
+
+function parseDate(v){
+  if(!v&&v!==0)return null;
+  if(typeof v==='string'&&v.startsWith('Date(')){
+    const p=v.slice(5,-1).split(',').map(Number);
+    if(p.length>=3)return new Date(p[0],p[1],p[2]);
+  }
+  if(typeof v==='string'){
+    let d=new Date(v);if(!isNaN(d))return d;
+    const m=v.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+    if(m){d=new Date(+m[3]<100?+m[3]+2000:+m[3],+m[2]-1,+m[1]);if(!isNaN(d))return d;}
+  }
+  if(typeof v==='number'&&v>40000&&v<60000)return new Date((v-25569)*86400000);
+  return null;
+}
+
+function findCol(labels,kws){
+  const k=kws.map(x=>x.toLowerCase());
+  // Pass 1: exact match (col name === keyword) — "Total" beats "Total/Time Min"
+  for(let i=0;i<labels.length;i++){
+    const lb=(labels[i]||'').toLowerCase().replace(/\s+/g,' ').trim();
+    if(k.some(x=>lb===x))return i;
+  }
+  // Pass 2: short label ≤35 chars — avoids "Inventory Stock WH ดึงข้อมูล ณ วันที่..."
+  for(let i=0;i<labels.length;i++){
+    const lb=(labels[i]||'').toLowerCase().replace(/\s+/g,' ').trim();
+    if(lb.length<=35&&k.some(x=>lb.includes(x)))return i;
+  }
+  // Pass 3: any label length
+  for(let i=0;i<labels.length;i++){
+    const lb=(labels[i]||'').toLowerCase().replace(/\s+/g,' ').trim();
+    if(k.some(x=>lb.includes(x)))return i;
+  }
+  return -1;
+}
+
+/* ── Progress ── */
+function setProgress(p,msg){
+  document.getElementById('progFill').style.width=p+'%';
+  if(msg)document.getElementById('loadStatus').textContent=msg;
+}
+
+/* ── Process GRPO tab ── */
+function processGrpo(table){
+  const cols=table.cols.map(c=>(c.label||c.id||'').trim());
+  const types=table.cols.map(c=>c.type);
+  _dbg.grpoCols=cols;_dbg.grpoTypes=types;
+  
+  let iDate=findCol(cols,['document date','posting date','วันที่เอกสาร','วันที่รับ','วันที่ gr','วันที่','date','ตรวจรับ','เริ่มต้น','เวลาเริ่ม']);
+  if(iDate<0)iDate=types.findIndex(t=>t==='datetime'||t==='date');
+  const iSupp=findCol(cols,['bp name','supplier','vendor','ผู้จัด','บริษัท']);
+  const iCode=findCol(cols,['item no','item no.','item number','รหัสสินค้า','รหัส','code','sku']);
+  const iDesc=findCol(cols,['item description','description','ชื่อสินค้า','สินค้า','desc']);
+  const iQty=findCol(cols,['quantity','จำนวน','qty','# quantity']);
+  const iCur=findCol(cols,['currency','สกุลเงิน','cur','crcy']);
+  const iTotal=findCol(cols,['total price','total','net value','net amount','amount','ราคารวม','รวม']);
+  const iExp=findCol(cols,['exp','expire','expiry','หมดอายุ','วันหมดอายุ']);
+  const iPrice=findCol(cols,['gross price','unit price','price after','price','ราคา']);
+  const iCan=findCol(cols,['cancel','ยกเลิก','del.ind','void','deletion']);
+  // Performance & classification columns
+  const iTimeInsp=cols.findIndex(c=>{const lb=c.toLowerCase().replace(/\s+/g,' ').trim();return lb.includes('total/time')||lb.includes('total/ time');});
+  const iTimeSys=cols.findIndex((c,idx)=>{if(idx<=iTimeInsp)return false;const lb=c.toLowerCase().replace(/\s+/g,' ').trim();return lb.includes('total/time')||lb.includes('total/ time');});
+  const iImport=findCol(cols,['import type','importtype','ประเภทนำเข้า','import']);
+  const iTempCtrl=findCol(cols,['tempcontrol','temp control','temp']);
+  const iPlace=findCol(cols,['สถานที่','place','location','ที่รับ']);
+
+  _dbg.grpoDetected={date:`[${iDate}]${cols[iDate]||'?'}`,supp:`[${iSupp}]${cols[iSupp]||'?'}`,code:`[${iCode}]${cols[iCode]||'?'}`,qty:`[${iQty}]${cols[iQty]||'?'}`,cur:`[${iCur}]${cols[iCur]||'?'}`,total:`[${iTotal}]${cols[iTotal]||'?'}`};
+  
+  const rows=[];
+  for(const row of table.rows){
+    if(!row.c)continue;
+    const g=i=>(i>=0&&i<row.c.length&&row.c[i])?row.c[i].v:null;
+    if(iCan>=0&&['Y','X'].includes(String(g(iCan)||'').toUpperCase()))continue;
+    const qty=parseFloat(g(iQty))||0;
+    const cur=String(g(iCur)||'THB').toUpperCase().trim();
+    const total=parseFloat(g(iTotal))||0;
+    const up=parseFloat(g(iPrice))||0;
+    const val=(total||(up*qty));
+    const rate=cur==='USD'?USD:cur==='EUR'?EUR:1;
+    const date=parseDate(g(iDate));
+    const mk=date?`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}`:'0000-00';
+    const moIdx=date?date.getMonth():null; // 0-based
+    rows.push({date,mk,moIdx,supp:String(g(iSupp)||'–').trim(),code:String(g(iCode)||'–').trim(),desc:String(g(iDesc)||'–').trim(),qty,cur,thb:val*rate,exp:parseDate(g(iExp)),timeInsp:parseFloat(g(iTimeInsp))||0,timeSys:parseFloat(g(iTimeSys))||0,importType:String(g(iImport)||'–').trim(),tempCtrl:String(g(iTempCtrl)||'–').trim(),place:String(g(iPlace)||'–').trim()});
+  }
+  _dbg.grpoRows=rows.length;
+  return rows;
+}
+
+/* ── Process Stock tab ── */
+function processStock(table,moLabel){
+  if(!table||!table.cols)return{moLabel,totalQty:0,items:[]};
+  const cols=table.cols.map(c=>(c.label||c.id||'').trim());
+  const types=table.cols.map(c=>c.type);
+  if(!_dbg.stockInfo)_dbg.stockInfo=[];
+
+  const iCode=findCol(cols,['item no','item no.','item number','sku','รหัสสินค้า','รหัส','code','no.','item code']);
+  const iDesc=findCol(cols,['item description','description','ชื่อสินค้า','สินค้า','desc','product','name','ชื่อ','item name']);
+
+  // ── Extended qty detection ──
+  let iTotal=findCol(cols,[
+    'total','stock','จำนวน','quantity','qty','คงเหลือ',
+    'จำนวนคงเหลือ','ยอดคงเหลือ','สต็อก','สต๊อก',
+    'on hand','onhand','on-hand','balance','available',
+    'จำนวนสินค้า','ปริมาณ','จำนวนที่เหลือ','จำนวนหน่วย',
+    'ยอด','สต็อคคงเหลือ','in stock','จำนวนรวม','จน.','จน'
+  ]);
+
+  // Fallback: numeric column with most positive values (skip code/desc/date cols)
+  if(iTotal<0&&table.rows&&table.rows.length>0){
+    const scored=[];
+    for(let ci=0;ci<cols.length;ci++){
+      if(ci===iCode||ci===iDesc)continue;
+      if(types[ci]==='date'||types[ci]==='datetime')continue;
+      let cnt=0;
+      for(const row of table.rows){
+        if(!row.c||!row.c[ci]||row.c[ci].v===null)continue;
+        const v=parseFloat(row.c[ci].v);
+        if(!isNaN(v)&&v>0)cnt++;
+      }
+      if(cnt>0)scored.push({ci,cnt,label:cols[ci]});
+    }
+    scored.sort((a,b)=>b.cnt-a.cnt);
+    if(scored.length>0)iTotal=scored[0].ci;
+    _dbg.stockFallback=(scored[0]||null);
+  }
+
+  const iExp=findCol(cols,['exp','expire','expiry','หมดอายุ','วันหมดอายุ','expiration','best before','exp date','วันหมด','exp.']);
+  const iRem=findCol(cols,['remaining','year','rem','เหลือ','อายุเหลือ']);
+  const iSupp=findCol(cols,['vendor','bp name','supplier','ผู้จัด','vendor name','manufacturer']);
+  const iWhCode=findCol(cols,['wh code','whcode','wh','คลัง','warehouse','location','loc','สถานที่','j']);
+  const iBatch=findCol(cols,['batchnum','batch number','batch no','batch','lot','lot number','lot no','batch no.','เลขที่ล็อต','ล็อต']);
+
+  _dbg.stockInfo.push({moLabel,cols,types,detected:{iCode,iDesc,iTotal,iExp,iRem},codeColName:cols[iCode]||'?',qtyColName:cols[iTotal]||'NOT FOUND'});
+
+  const items=[];
+  for(const row of table.rows){
+    if(!row.c)continue;
+    const g=i=>(i>=0&&i<row.c.length&&row.c[i])?row.c[i].v:null;
+    const code=String(g(iCode)||'').trim();
+    if(!code||code==='-'||/^item\s*no/i.test(code))continue;
+    const qty=parseFloat(g(iTotal))||0;
+    if(qty<=0&&!g(iExp))continue;
+    items.push({moLabel,code,desc:String(g(iDesc)||'–').trim(),qty,exp:parseDate(g(iExp)),remYear:parseFloat(g(iRem))||0,supp:String(g(iSupp)||'–').trim(),wh:String(g(iWhCode)||'–').trim(),batch:String(g(iBatch)||'–').trim()});
+  }
+  const totalQty=items.reduce((s,x)=>s+x.qty,0);
+  const info=_dbg.stockInfo[_dbg.stockInfo.length-1];
+  info.totalQty=totalQty;info.itemCount=items.length;
+  return{moLabel,totalQty,items};
+}
+
+/* ── Main load ── */
+/* ── processIssueAll: load main "จ่ายออก" sheet → split by month (col A = M.)
+   Main sheet columns: A=M., B=Date, C=Series, D=DocNum, E=VendorCode, F=VendorName,
+   G=ItemCode, H=ItemName, I=Quantity, J=Price_Unit, K=Gross Total ── */
+function processIssueAll(table){
+  if(!table?.cols)return MO_LABELS.map(lb=>({moLabel:lb,rows:[],totalQty:0,totalThb:0,_debug:{}}));
+  const cols=(table.cols||[]).map(c=>c.label||c.id||'');
+  const g=(row,i)=>{const c=(row.c||[])[i];return c?.v??c?.f??null;};
+  const fc=(kws,fb)=>{const r=findCol(cols,kws);return(r===null||r===undefined||r<0)?fb:r;};
+  // Detect columns
+  const iMonth=fc(['m.','month','เดือน','mo.'],0);
+  const iCode=fc(['itemcode','item code','item no.','item no','รหัส','code'],6);
+  const iDesc=fc(['itemname','item name','item description','description','ชื่อ'],7);
+  const iQty=fc(['quantity','qty','จำนวน','จำนวนจ่าย'],8);
+  const iPrice=fc(['price_unit','price unit','unit price','price','ราคา'],9);
+  const iTotal=fc(['gross total','total','ราคารวม','รวม'],10);
+  // Month name → index map (EN + TH)
+  const MO_MAP={'JAN':0,'FEB':1,'MAR':2,'APR':3,'MAY':4,'JUN':5,
+                'ม.ค.':0,'ก.พ.':1,'มี.ค.':2,'เม.ย.':3,'พ.ค.':4,'มิ.ย.':5,
+                '1':0,'2':1,'3':2,'4':3,'5':4,'6':5};
+  const result=MO_LABELS.map(lb=>({moLabel:lb,rows:[],totalQty:0,totalThb:0}));
+  let skipped=0, added=0;
+  for(const row of(table.rows||[])){
+    const moRaw=String(g(row,iMonth)||'').trim();
+    const moKey=moRaw.toUpperCase().substring(0,3);
+    const moIdx=MO_MAP[moKey]??MO_MAP[moRaw];
+    if(moIdx===undefined||moIdx===null){skipped++;continue;}
+    const code=String(g(row,iCode)||'').trim();
+    if(!code||code.length<2){skipped++;continue;}
+    const qty=parseFloat(g(row,iQty))||0;
+    if(qty<=0){skipped++;continue;}
+    const thbRaw=parseFloat(g(row,iTotal));
+    const thb=isNaN(thbRaw)?qty*(parseFloat(g(row,iPrice))||0):thbRaw;
+    const up=parseFloat(g(row,iPrice))||0;
+    result[moIdx].rows.push({code,desc:String(g(row,iDesc)||'').trim(),qty,thb,up});
+    result[moIdx].totalQty+=qty;
+    result[moIdx].totalThb+=thb;
+    added++;
+  }
+  // Attach debug info
+  result.forEach(m=>{m._debug={rowsFound:m.rows.length,totalQty:m.totalQty,totalThb:Math.round(m.totalThb)};});
+  result[0]._debug.colDetected={iMonth,iCode,iDesc,iQty,iPrice,iTotal,
+    moCol:cols[iMonth],codeCol:cols[iCode],qtyCol:cols[iQty],
+    totalAdded:added,totalSkipped:skipped};
+  return result;
+}
+
+async function loadData(){
+  document.getElementById('loading').style.display='flex';
+  document.getElementById('main').style.display='none';
+  document.getElementById('err').style.display='none';
+  _dbg={version:"v3.1-jun15-colscan"};
+  
+  try{
+    // 1. GRPO
+    setProgress(5,'กำลังโหลด GRPO. (รับเข้า)...');
+    const grpoResp=await loadJsonp(null,GRPO_GID);
+    if(grpoResp.status==='error')throw new Error(grpoResp.errors?.[0]?.message||'GRPO error');
+    const grpoData=processGrpo(grpoResp.table);
+    setProgress(20,'GRPO ✓ — กำลังโหลด Stock รายเดือน...');
+    
+    // 2. Monthly stock
+    const stockArr=[];
+    for(let i=0;i<STOCK_SHEETS.length;i++){
+      setProgress(20+(i+1)*15,`กำลังโหลด Stock ${MO_LABELS[i]}...`);
+      try{
+        const r=await loadJsonp(STOCK_SHEETS[i],null);
+        if(r.status==='error')throw new Error(r.errors?.[0]?.message);
+        stockArr.push(processStock(r.table,MO_LABELS[i]));
+      }catch(e){
+        console.warn(`Stock ${MO_LABELS[i]} failed:`,e.message);
+        stockArr.push({moLabel:MO_LABELS[i],totalQty:0,items:[]});
+      }
+    }
+    
+    // 2b. Load main "จ่ายออก" sheet (single sheet with M. column for month filter)
+    setProgress(70,'กำลังโหลด จ่ายออก (ทุกเดือน)...');
+    let issueArr;
+    try{
+      const ir=await loadJsonp('จ่ายออก',null);
+      if(ir.status==='error')throw new Error(ir.errors?.[0]?.message);
+      issueArr=processIssueAll(ir.table);
+    }catch(e){
+      console.warn('จ่ายออก main sheet failed:',e.message);
+      issueArr=MO_LABELS.map(lb=>({moLabel:lb,rows:[],totalQty:0,totalThb:0}));
+    }
+    _dbg.issueInfo=issueArr.map(m=>({month:m.moLabel,rows:m.rows.length,totalQty:m.totalQty,totalThb:Math.round(m.totalThb),dbg:m._debug}));
+
+    setProgress(98,'กำลังแสดงผล...');
+    render(grpoData,stockArr,issueArr);
+    setProgress(100);
+    
+  }catch(ex){
+    document.getElementById('loading').style.display='none';
+    document.getElementById('err').style.display='block';
+    document.getElementById('errMsg').textContent=ex.message;
+    updateDebug();
+  }
+}
+
+/* ── Render ── */
+function render(grpo,stockArr,issueArr){
+  const now=new Date();
+  
+  // ── KPIs ──
+  const totalThb=grpo.reduce((s,r)=>s+r.thb,0);
+  const totalQty=grpo.reduce((s,r)=>s+r.qty,0);
+  const mayStock=stockArr[5]||stockArr[4]||{totalQty:0,items:[]};
+  const mayTotalQty=mayStock.totalQty;
+  const maySku=new Set(mayStock.items.map(x=>x.code)).size;
+  const mayNear=mayStock.items.filter(x=>x.exp&&(x.exp-now)/31536e6<=0.25);
+  const mayNearSku=new Set(mayNear.map(x=>x.code)).size;
+  
+  document.getElementById('k1').textContent=fmt(totalThb)+'฿';
+  document.getElementById('k2').textContent=fmt(totalQty);
+  document.getElementById('k2n').textContent=`${grpo.length} รายการรับเข้า`;
+  document.getElementById('k3').textContent=fmt(mayTotalQty);
+  document.getElementById('k4').textContent=mayNearSku;
+  document.getElementById('k5').textContent=maySku;
+  document.getElementById('hdrSub').textContent='ม.ค.–มิ.ย. 2026 · อัพเดทอัตโนมัติ';
+  
+  // ── Month buckets for GRPO ──
+  const moMap={};
+  MO_LABELS.forEach((m,i)=>moMap[m]={lb:MO_FULL[i],thb:0,usd:0,eur:0,qty:0,cnt:0,idx:i});
+  grpo.forEach(r=>{
+    const mi=r.moIdx; // 0-11
+    const mo=mi!==null?MO_LABELS.find((_,i)=>i===mi%6):null; // map to ม.ค.-มิ.ย. by month number
+    // Use calendar month Jan=ม.ค., May=พ.ค.
+    const monthName=r.date?MO_LABELS[r.date.getMonth()]:null; // 0=ม.ค. 1=ก.พ....
+    // Only Jan-Jun (0-5)
+    if(monthName&&r.date&&r.date.getMonth()<=5&&r.date.getFullYear()===2026){
+      const m=moMap[monthName];
+      if(m){m.qty+=r.qty;m.thb+=r.thb;m.cnt++;if(r.cur==='USD')m.usd+=r.thb;else if(r.cur==='EUR')m.eur+=r.thb;}
+    }
+  });
+  const moArr=MO_LABELS.map(m=>moMap[m]);
+  
+  // ── Stock totals per month ──
+  const stockTotals=stockArr.map(s=>s.totalQty);
+  
+  // ── Supplier aggregate — skip rows with no supplier name ──
+  const suppMap=new Map();
+  grpo.forEach(r=>{
+    if(!r.supp||r.supp==='–'||r.supp==='-')return;
+    suppMap.set(r.supp,(suppMap.get(r.supp)||0)+r.thb);
+  });
+  const top8=[...suppMap.entries()].sort((a,b)=>b[1]-a[1]).slice(0,8);
+  
+  // ── Item aggregate (GR) — skip rows with no item code ──
+  const itemMap=new Map();
+  grpo.forEach(r=>{
+    if(!r.code||r.code==='–'||r.code==='-')return;
+    if(!itemMap.has(r.code))itemMap.set(r.code,{desc:r.desc,thb:0,qty:0});
+    const it=itemMap.get(r.code);it.thb+=r.thb;it.qty+=r.qty;
+  });
+  const top10GR=[...itemMap.entries()].sort((a,b)=>b[1].thb-a[1].thb).slice(0,10);
+  
+  // ── Top stock (มิ.ย.) by qty — sum ทุก lot/wh ──
+  const mayItemMap=new Map();
+  mayStock.items.forEach(x=>{
+    if(!mayItemMap.has(x.code)){
+      mayItemMap.set(x.code,{...x,qty:0});
+    }
+    mayItemMap.get(x.code).qty+=x.qty;
+    // อัปเดต EXP ให้ใช้วันใกล้สุด (เพื่อแจ้งเตือน)
+    if(x.exp&&(!mayItemMap.get(x.code).exp||x.exp<mayItemMap.get(x.code).exp))
+      mayItemMap.get(x.code).exp=x.exp;
+  });
+  const top10May=[...mayItemMap.values()].sort((a,b)=>b.qty-a.qty).slice(0,10);
+  
+  // ── Issued per item per month (ม.ค.–มิ.ย.) — ข้อมูลจริงจากชีตจ่ายออก ──
+  const ISSUED_MO_LB=MO_LABELS; // ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.']
+  const issuedByItem={};
+  (issueArr||[]).forEach((mo,moIdx)=>{
+    mo.rows.forEach(r=>{
+      if(!r.code)return;
+      if(!issuedByItem[r.code])issuedByItem[r.code]={desc:r.desc,moQty:Array(6).fill(0),moVal:Array(6).fill(0),total:0,totalVal:0};
+      issuedByItem[r.code].moQty[moIdx]+=r.qty;
+      issuedByItem[r.code].moVal[moIdx]+=r.thb;
+      issuedByItem[r.code].total+=r.qty;
+      issuedByItem[r.code].totalVal+=r.thb;
+    });
+  });
+  const top10IssuedItems=Object.entries(issuedByItem).sort((a,b)=>b[1].total-a[1].total).slice(0,10);
+  // Issued totals by month
+  const issuedTotalByMo=MO_LABELS.map((_,i)=>Object.values(issuedByItem).reduce((s,v)=>s+v.moQty[i],0));
+  const issuedValByMo=MO_LABELS.map((_,i)=>Object.values(issuedByItem).reduce((s,v)=>s+v.moVal[i],0));
+  
+  // ── Stock trend for top 10 SKUs ──
+  const top10Codes=top10May.map(x=>x.code);
+  
+  // ── Expiry tables ──
+  const expByCode=new Map();
+  mayStock.items.forEach(x=>{
+    if(!x.exp)return;
+    if(!expByCode.has(x.code)||expByCode.get(x.code).exp>x.exp)expByCode.set(x.code,x);
+  });
+  const allExp=[...expByCode.values()];
+  const nearItems=allExp.filter(x=>(x.exp-now)/31536e6<=0.25).sort((a,b)=>a.exp-b.exp);
+  const longItems=allExp.filter(x=>(x.exp-now)/31536e6>=2.5).sort((a,b)=>b.qty-a.qty);
+  
+  // ── Expiry pie data ──
+  const expired=allExp.filter(x=>(x.exp-now)/31536e6<=0).length;
+  const lt3=allExp.filter(x=>{const y=(x.exp-now)/31536e6;return y>0&&y<=0.25;}).length;
+  const lt6=allExp.filter(x=>{const y=(x.exp-now)/31536e6;return y>0.25&&y<=0.5;}).length;
+  const lt9=allExp.filter(x=>{const y=(x.exp-now)/31536e6;return y>0.5&&y<=0.75;}).length;
+  const gt9=allExp.filter(x=>(x.exp-now)/31536e6>0.75).length;
+  
+  // ── CHARTS ──
+  const mkChart=(id,type,data,opts)=>{
+    if(charts[id])charts[id].destroy();
+    const c=document.getElementById(id);if(!c)return;
+    charts[id]=new Chart(c,{type,data,options:{responsive:true,maintainAspectRatio:false,animation:{duration:350},...opts}});
+  };
+  
+  // 6.1 Value stacked bar
+  mkChart('cVal','bar',{labels:MO_FULL,datasets:[
+    {label:'THB',data:moArr.map(m=>m.thb-m.usd-m.eur),backgroundColor:'rgba(108,143,248,.8)',stack:'s',borderRadius:2},
+    {label:'USD→฿',data:moArr.map(m=>m.usd),backgroundColor:'rgba(86,217,160,.8)',stack:'s',borderRadius:2},
+    {label:'EUR→฿',data:moArr.map(m=>m.eur),backgroundColor:'rgba(248,201,108,.8)',stack:'s',borderRadius:2},
+  ]},{plugins:{legend:{labels:{color:'#7a8499',font:{size:8},boxWidth:8}},tooltip:{...TIP,callbacks:{label:c=>` ${c.dataset.label}: ${fmt(c.raw)}฿`}}},
+    scales:{x:{stacked:true,ticks:tickCb(),grid:{color:GRD}},y:{stacked:true,ticks:tickCb(v=>fmt(v)),grid:{color:GRD}}}});
+
+  // 6.2 Stock trend line
+  mkChart('cStock','line',{labels:MO_FULL,datasets:[
+    {label:'Stock คงเหลือ',data:stockTotals,borderColor:'rgba(86,217,160,.9)',backgroundColor:'rgba(86,217,160,.1)',fill:true,tension:.35,pointRadius:4,pointBackgroundColor:'rgba(86,217,160,.9)'}
+  ]},{plugins:{legend:{display:false},tooltip:{...TIP,callbacks:{label:c=>` ${fmt(c.raw)} หน่วย`}}},
+    scales:{x:{ticks:tickCb(),grid:{color:GRD}},y:{ticks:tickCb(v=>fmt(v)),grid:{color:GRD}}}});
+
+  // 6.3 Qty bar
+  mkChart('cQty','bar',{labels:MO_FULL,datasets:[
+    {label:'รับเข้า',data:moArr.map(m=>m.qty),backgroundColor:MO_FULL.map((_,i)=>C5[i%5]),borderRadius:3}
+  ]},{plugins:{legend:{display:false},tooltip:{...TIP,callbacks:{label:c=>` ${fmt(c.raw)} หน่วย`}}},
+    scales:{x:{ticks:tickCb(),grid:{color:GRD}},y:{ticks:tickCb(v=>fmt(v)),grid:{color:GRD}}}});
+
+  // 6.4.0 GRPO count per month
+  mkChart('cGrpoCount','bar',{labels:MO_FULL,datasets:[
+    {label:'ใบรับเข้า',data:moArr.map(m=>m.cnt),backgroundColor:MO_FULL.map((_,i)=>C5[i%5]),borderRadius:3}
+  ]},{plugins:{legend:{display:false},tooltip:{...TIP,callbacks:{label:c=>` ${c.raw} ใบ`}}},
+    scales:{x:{ticks:tickCb(),grid:{color:GRD}},y:{ticks:tickCb(v=>v+' ใบ'),grid:{color:GRD}}}});
+
+  // 6.4 Top 8 supplier
+  mkChart('cSupp','bar',{labels:top8.map(s=>lbl(s[0],18)),datasets:[
+    {label:'มูลค่า',data:top8.map(s=>s[1]),backgroundColor:'rgba(108,143,248,.7)',borderRadius:2}
+  ]},{indexAxis:'y',plugins:{legend:{display:false},tooltip:{...TIP,callbacks:{title:i=>top8[i[0].dataIndex][0],label:c=>` ${fmt(c.raw)}฿`}}},
+    scales:{x:{ticks:tickCb(v=>fmt(v)),grid:{color:GRD}},y:{ticks:{color:'#7a8499',font:{size:8}},grid:{color:GRD}}}});
+
+  // 8-10. Issued stacked bar (Top 10 items × 4 months)
+  const ISSUED_CLR=['rgba(108,143,248,.8)','rgba(86,217,160,.8)','rgba(248,201,108,.8)','rgba(248,112,108,.8)'];
+  mkChart('cIssuedStack','bar',{
+    labels:top10IssuedItems.map(([c])=>c),
+    datasets:ISSUED_MO_LB.map((lb,i)=>({
+      label:lb,
+      data:top10IssuedItems.map(([,v])=>v.moQty[i]),
+      backgroundColor:ISSUED_CLR[i],
+      stack:'s',
+      borderRadius:i===3?2:0
+    }))
+  },{plugins:{
+    legend:{labels:{color:'#7a8499',font:{size:8},boxWidth:8,padding:8}},
+    tooltip:{...TIP,callbacks:{
+      title:i=>{ const [code,v]=top10IssuedItems[i[0].dataIndex]||[]; return code+(v?` — ${lbl(v.desc,30)}`:''); },
+      label:c=>` ${c.dataset.label}: ${fmt(c.raw)} หน่วย`
+    }}
+  },scales:{
+    x:{stacked:true,ticks:{color:'#7a8499',font:{size:9},maxRotation:0,autoSkip:false},grid:{color:GRD}},
+    y:{stacked:true,ticks:tickCb(v=>fmt(v)),grid:{color:GRD}}
+  }});
+
+  // 12. Expiry pie
+  mkChart('cExpPie','doughnut',{
+    labels:['⛔ หมดแล้ว','🔴 <3 เดือน','🟠 <6 เดือน','🟡 <9 เดือน','✅ >9 เดือน'],
+    datasets:[{data:[expired,lt3,lt6,lt9,gt9],backgroundColor:['rgba(248,112,108,.8)','rgba(248,112,108,.5)','rgba(248,168,108,.7)','rgba(248,201,108,.7)','rgba(86,217,160,.7)'],hoverOffset:6,borderWidth:0}]
+  },{cutout:'60%',plugins:{legend:{position:'bottom',labels:{color:'#7a8499',font:{size:9},boxWidth:8,padding:8}},tooltip:{...TIP,callbacks:{label:c=>` ${c.label}: ${c.raw} SKU`}}}});
+
+  // ── TABLES ──
+  const mx10=top10GR.length?Math.max(...top10GR.map(x=>x[1].thb)):1;
+  document.getElementById('tTop10GR').innerHTML=top10GR.map(([c,i],n)=>
+    `<tr><td class="rk">${n+1}</td><td title="${i.desc||''}" style="max-width:240px"><div class="code">${c}</div><div class="nm" style="white-space:normal;word-break:break-word">${i.desc||'–'}</div></td>
+    <td class="num">${fmt(i.thb)}฿</td><td class="num">${fmt(i.qty)}</td>
+    <td><div class="br-row"><div class="bar-fill" style="width:${Math.round(i.thb/mx10*60)}px"></div>${(i.thb/mx10*100).toFixed(0)}%</div></td></tr>`).join('');
+
+  // ── 9.5. Stock by Warehouse (JUN-2026, Wh Code column J) ──
+  const junStock=stockArr[5]||stockArr[4]||{items:[]};
+  const whMap=new Map();
+  junStock.items.forEach(x=>{
+    const wh=x.wh&&x.wh!=='–'&&x.wh!==''?x.wh:'ไม่ระบุ';
+    if(!whMap.has(wh))whMap.set(wh,{qty:0,sku:new Set()});
+    const w=whMap.get(wh);w.qty+=x.qty;w.sku.add(x.code);
+  });
+  const whArr=[...whMap.entries()].map(([k,v])=>({wh:k,qty:v.qty,sku:v.sku.size}))
+    .filter(x=>x.qty>0).sort((a,b)=>b.qty-a.qty);
+  const WH_CLR=['rgba(108,143,248,.8)','rgba(86,217,160,.8)','rgba(248,201,108,.8)','rgba(248,112,108,.8)','rgba(167,139,250,.8)','rgba(88,186,255,.8)','rgba(248,168,108,.8)','rgba(160,217,130,.8)'];
+  mkChart('cWhStock','bar',{
+    labels:whArr.map(x=>x.wh),
+    datasets:[{label:'จำนวน (หน่วย)',data:whArr.map(x=>x.qty),backgroundColor:whArr.map((_,i)=>WH_CLR[i%WH_CLR.length]),borderRadius:4}]
+  },{indexAxis:'y',
+    plugins:{legend:{display:false},tooltip:{...TIP,callbacks:{
+      title:i=>whArr[i[0].dataIndex].wh,
+      label:c=>[` จำนวน: ${fmt(c.raw)} หน่วย`,` SKU: ${whArr[c.dataIndex].sku} รายการ`]
+    }}},
+    scales:{x:{ticks:tickCb(v=>fmt(v)),grid:{color:GRD}},y:{ticks:{color:'#cdd5e0',font:{size:10}},grid:{color:GRD}}}
+  });
+  document.getElementById('whStockLegend').innerHTML=whArr.map((x,i)=>
+    `<div style="display:flex;justify-content:space-between;gap:12px;padding:2px 0;border-bottom:1px solid rgba(255,255,255,.04)">
+      <span style="display:flex;align-items:center;gap:5px"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${WH_CLR[i%WH_CLR.length]}"></span>${x.wh}</span>
+      <span style="color:#cdd5e0;font-weight:600">${fmt(x.qty)}</span>
+    </div>`).join('');
+
+  document.getElementById('tTopStock').innerHTML=top10May.map((x,n)=>
+    `<tr><td class="rk">${n+1}</td><td title="${x.desc||''}" style="max-width:240px"><div class="code">${x.code}</div><div class="nm" style="white-space:normal;word-break:break-word">${x.desc||'–'}</div></td>
+    <td class="num">${fmt(x.qty)}</td><td class="num" style="font-size:.57rem;color:var(--mu)">${fmtD(x.exp)}</td></tr>`).join('');
+
+  // Trend table — redesigned as proper <table> for clarity
+  const tg=document.getElementById('trendGrid');
+  const MO_FULL6=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.'];
+  const thS='padding:4px 8px;text-align:center;font-size:.58rem;color:var(--mu);font-weight:700;border-bottom:1px solid var(--bd);white-space:nowrap';
+  const tdS='padding:3px 8px;text-align:right;font-size:.6rem;font-variant-numeric:tabular-nums;white-space:nowrap';
+  const codeS='padding:3px 8px;font-family:monospace;font-size:.6rem;white-space:nowrap;color:var(--ac)';
+  const nameS='padding:3px 8px 3px 2px;font-size:.55rem;color:var(--mu);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+
+  const trendRows=top10Codes.map((code,ri)=>{
+    const desc=(mayStock.items.find(x=>x.code===code)||{}).desc||'';
+    const vals=stockArr.map(s=>s.items.filter(x=>x.code===code).reduce((a,b)=>a+b.qty,0));
+    const mx=Math.max(...vals,1);
+    const mn=Math.min(...vals.filter(v=>v>0),mx);
+    const cells=vals.map((v,i)=>{
+      const bg=v===mx?'background:rgba(86,217,160,.15);color:var(--g)':
+               v===mn&&v>0?'background:rgba(248,112,108,.12);color:var(--r)':
+               'color:var(--tx)';
+      const arrow=i>0&&vals[i-1]>0?(v>vals[i-1]?'<span style="color:var(--g);font-size:.5rem">▲</span>':v<vals[i-1]?'<span style="color:var(--r);font-size:.5rem">▼</span>':''):'';
+      return`<td style="${tdS};${bg}">${v>0?fmt(v):'–'}${arrow}</td>`;
+    }).join('');
+    // change % ม.ค.→มิ.ย.
+    const chg=vals[0]>0?((vals[5]-vals[0])/vals[0]*100).toFixed(1):null;
+    const chgHtml=chg!==null?`<span style="font-size:.55rem;color:${parseFloat(chg)>=0?'var(--g)':'var(--r)'}">${parseFloat(chg)>=0?'▲':'▼'}${Math.abs(chg)}%</span>`:'–';
+    const rowBg=ri%2===0?'background:rgba(255,255,255,.02)':'';
+    return`<tr style="${rowBg}">
+      <td style="${codeS}">${code}</td>
+      <td style="${nameS}" title="${desc}">${desc.length>18?desc.slice(0,17)+'…':desc}</td>
+      ${cells}
+      <td style="${tdS}">${chgHtml}</td>
+    </tr>`;
+  }).join('');
+
+  tg.innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:.6rem">
+    <thead><tr>
+      <th style="${thS};text-align:left">Item Code</th>
+      <th style="${thS};text-align:left">ชื่อสินค้า</th>
+      ${MO_FULL6.map(m=>`<th style="${thS}">${m}</th>`).join('')}
+      <th style="${thS}">เปลี่ยนแปลง<br>ม.ค.→มิ.ย.</th>
+    </tr></thead>
+    <tbody>${trendRows}</tbody>
+  </table>`;
+
+  // Issued detail table (per item × per month)
+  document.getElementById('tIssuedDetail').innerHTML=top10IssuedItems.length
+    ?top10IssuedItems.map(([code,v],n)=>
+      `<tr><td class="rk">${n+1}</td>
+      <td title="${v.desc||''}" style="max-width:200px"><div class="code">${code}</div><div class="nm" style="white-space:normal;word-break:break-word">${v.desc||'–'}</div></td>
+      ${v.moQty.map((q,i)=>`<td class="num" style="vertical-align:top;padding:4px 6px">
+        <div style="font-weight:${q>0?'600':'400'};color:${q>0?'var(--tx)':'var(--mu)'}">${q>0?q.toLocaleString():'–'}</div>
+        <div style="font-size:.55rem;color:${v.moVal[i]>0?'var(--y)':'var(--mu)'};margin-top:1px">${v.moVal[i]>0?fmt(v.moVal[i])+'฿':'–'}</div>
+      </td>`).join('')}
+      <td class="num" style="vertical-align:top;padding:4px 6px">
+        <div style="color:var(--g);font-weight:700">${v.total.toLocaleString()}</div>
+        <div style="font-size:.55rem;color:var(--y);margin-top:1px">${v.totalVal>0?fmt(v.totalVal)+'฿':'–'}</div>
+      </td></tr>`).join('')
+    :`<tr><td colspan="8" style="text-align:center;color:var(--mu);padding:14px">ไม่สามารถประมาณการได้</td></tr>`;
+
+  // Expiry
+  window._nearExpItems=nearItems;
+  window._junStockItems=mayStock.items;
+  window._issuedByItem=issuedByItem;
+  document.getElementById('nearCnt').textContent=nearItems.length;
+  document.getElementById('longCnt').textContent=longItems.length;
+  document.getElementById('tNear').innerHTML=nearItems.length
+    ?nearItems.map((x,n)=>{
+        const y=(x.exp-now)/31536e6;
+        const[cl,lb2]=y<=0?['ec','⛔ หมดแล้ว']:y<=0.25?['ec','🔴 <3 เดือน']:y<=0.5?['ew','🟠 <6 เดือน']:['eo','🟡 <9 เดือน'];
+        return`<tr><td class="rk">${n+1}</td><td title="${x.desc||''}" style="max-width:220px"><div class="code">${x.code}</div><div class="nm" style="white-space:normal;word-break:break-word">${x.desc||'–'}</div></td>
+        <td style="font-size:.6rem;color:var(--o);white-space:nowrap">${fmtD(x.exp)}</td><td><span class="eb ${cl}">${lb2}</span></td></tr>`;
+      }).join('')
+    :`<tr><td colspan="4" style="text-align:center;color:var(--g);padding:14px">✅ ไม่มีสินค้าใกล้หมดอายุ</td></tr>`;
+  document.getElementById('tLong').innerHTML=longItems.slice(0,12).map((x,n)=>{
+    const y=((x.exp-now)/31536e6).toFixed(1);
+    return`<tr><td class="rk">${n+1}</td><td title="${x.desc||''}" style="max-width:220px"><div class="code">${x.code}</div><div class="nm" style="white-space:normal;word-break:break-word">${x.desc||'–'}</div></td>
+    <td style="font-size:.6rem;color:var(--g);white-space:nowrap">${fmtD(x.exp)}</td>
+    <td><span class="eb" style="background:rgba(86,217,160,.1);color:var(--g);border:1px solid rgba(86,217,160,.2)">✅ ${y}ปี</span></td></tr>`;
+  }).join('');
+
+  // ═══════════════════════════════════════════
+  // SECTION 13: Receiving Performance
+  // ═══════════════════════════════════════════
+  const timeByMo={};
+  MO_LABELS.forEach(m=>timeByMo[m]={tot:0,cnt:0});
+  grpo.forEach(r=>{
+    if(!r.date||r.date.getFullYear()!==2026||r.date.getMonth()>5)return;
+    const m=MO_LABELS[r.date.getMonth()];
+    if(r.timeInsp>0){timeByMo[m].tot+=r.timeInsp;timeByMo[m].cnt++;}
+  });
+  const avgTimeByMo=MO_LABELS.map(m=>timeByMo[m].cnt>0?(timeByMo[m].tot/timeByMo[m].cnt).toFixed(1):0);
+
+  const suppTimeMap=new Map();
+  grpo.forEach(r=>{
+    if(!r.supp||r.supp==='–'||r.timeInsp<=0)return;
+    if(!suppTimeMap.has(r.supp))suppTimeMap.set(r.supp,{tot:0,cnt:0});
+    const s=suppTimeMap.get(r.supp);s.tot+=r.timeInsp;s.cnt++;
+  });
+  const topSuppTime=[...suppTimeMap.entries()].filter(([,v])=>v.cnt>0).map(([k,v])=>[k,v.tot/v.cnt]).sort((a,b)=>b[1]-a[1]).slice(0,8);
+
+  const allTI=grpo.filter(r=>r.timeInsp>0).map(r=>r.timeInsp);
+  const avgTI=allTI.length?(allTI.reduce((s,v)=>s+v,0)/allTI.length).toFixed(1):0;
+  const maxTI=allTI.length?parseFloat(Math.max(...allTI).toFixed(1)):0;
+  const _sorted=[...allTI].sort((a,b)=>a-b);
+  const medTI=_sorted.length?(_sorted.length%2===0?(_sorted[_sorted.length/2-1]+_sorted[_sorted.length/2])/2:_sorted[Math.floor(_sorted.length/2)]).toFixed(1):0;
+  const allTS=grpo.filter(r=>r.timeSys>0).map(r=>r.timeSys);
+  const avgTS=allTS.length?(allTS.reduce((s,v)=>s+v,0)/allTS.length).toFixed(1):0;
+
+  document.getElementById('perfKpiWrap').innerHTML=[
+    {l:'เวลาตรวจรับ avg',v:avgTI+' นาที',c:'var(--ac)'},
+    {l:'เวลาตรวจรับ median',v:medTI+' นาที',c:'var(--ac)'},
+    {l:'เวลาตรวจรับ max',v:maxTI+' นาที',c:'var(--r)',note:'(อาจมี outlier)'},
+    {l:'เวลารับเข้าระบบ avg',v:avgTS+' นาที',c:'var(--g)'},
+    {l:'จำนวน GRPO (มีเวลา)',v:allTI.length+' ครั้ง',c:'var(--y)'},
+  ].map(x=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 8px;background:rgba(255,255,255,.03);border-radius:6px;border:1px solid var(--bd)">
+    <span style="font-size:.6rem;color:var(--mu)">${x.l}</span>
+    <span style="display:flex;flex-direction:column;align-items:flex-end"><span style="font-size:.85rem;font-weight:700;color:${x.c}">${x.v}</span>${x.note?`<span style="font-size:.48rem;color:var(--mu)">${x.note}</span>`:''}</span>
+  </div>`).join('');
+
+  mkChart('cTimeMonth','bar',{labels:MO_FULL,datasets:[{label:'avg นาที',data:avgTimeByMo,backgroundColor:'rgba(108,143,248,.7)',borderRadius:3},{type:'line',label:'Target 30 นาที',data:Array(6).fill(30),borderColor:'rgba(248,112,108,.8)',borderWidth:1.5,borderDash:[5,4],pointRadius:0,fill:false}]},
+    {plugins:{legend:{display:false},tooltip:{...TIP,callbacks:{label:c=>` ${c.raw} นาที`}}},
+     scales:{x:{ticks:tickCb(),grid:{color:GRD}},y:{ticks:tickCb(v=>v+'น.'),grid:{color:GRD}}}});
+
+  mkChart('cTimeSupp','bar',{labels:topSuppTime.map(([k])=>lbl(k,22)),datasets:[{label:'avg นาที',data:topSuppTime.map(([,v])=>v.toFixed(1)),backgroundColor:'rgba(167,139,250,.7)',borderRadius:2}]},
+    {indexAxis:'y',plugins:{legend:{display:false},tooltip:{...TIP,callbacks:{title:i=>topSuppTime[i[0].dataIndex][0],label:c=>` ${c.raw} นาที`}}},
+     scales:{x:{ticks:tickCb(v=>v+'น.'),grid:{color:GRD}},y:{ticks:{color:'#7a8499',font:{size:8}},grid:{color:GRD}}}});
+
+  // ═══════════════════════════════════════════
+  // SECTION 14: Cold Chain & Import Type
+  // ═══════════════════════════════════════════
+  const tempMap=new Map();const importMap=new Map();const placeMap=new Map();
+  grpo.forEach(r=>{
+    const tc=(r.tempCtrl||'').trim()||'ไม่ระบุ';
+    if(tc!=='–'&&tc!=='-')tempMap.set(tc,(tempMap.get(tc)||0)+1);
+    const imp=(r.importType||'').trim()||'ไม่ระบุ';
+    if(imp!=='–'&&imp!=='-')importMap.set(imp,(importMap.get(imp)||0)+1);
+    const pl=(r.place||'').trim()||'ไม่ระบุ';
+    if(pl!=='–'&&pl!=='-')placeMap.set(pl,(placeMap.get(pl)||0)+1);
+  });
+  const tempEnt=[...tempMap.entries()].sort((a,b)=>b[1]-a[1]);
+  const importEnt=[...importMap.entries()].sort((a,b)=>b[1]-a[1]);
+  const placeEnt=[...placeMap.entries()].sort((a,b)=>b[1]-a[1]);
+  const PIE6=['rgba(108,143,248,.85)','rgba(86,217,160,.85)','rgba(248,201,108,.85)','rgba(248,112,108,.85)','rgba(167,139,250,.85)','rgba(248,168,108,.85)'];
+
+  mkChart('cTempPie','doughnut',{labels:tempEnt.map(([k])=>k),datasets:[{data:tempEnt.map(([,v])=>v),backgroundColor:PIE6,borderWidth:0,hoverOffset:6}]},
+    {cutout:'55%',plugins:{legend:{position:'right',labels:{color:'#7a8499',font:{size:8},boxWidth:8,padding:8}},tooltip:{...TIP,callbacks:{label:c=>` ${c.label}: ${c.raw} ครั้ง`}}}});
+
+  mkChart('cImportPie','doughnut',{labels:importEnt.map(([k])=>k),datasets:[{data:importEnt.map(([,v])=>v),backgroundColor:PIE6.slice().reverse(),borderWidth:0,hoverOffset:6}]},
+    {cutout:'55%',plugins:{legend:{position:'right',labels:{color:'#7a8499',font:{size:8},boxWidth:8,padding:8}},tooltip:{...TIP,callbacks:{label:c=>` ${c.label}: ${c.raw} ครั้ง`}}}})
+
+  const PIE6B=['rgba(167,139,250,.85)','rgba(248,201,108,.85)','rgba(86,217,160,.85)','rgba(108,143,248,.85)','rgba(248,112,108,.85)','rgba(248,168,108,.85)'];
+  mkChart('cPlacePie','doughnut',{labels:placeEnt.map(([k])=>k),datasets:[{data:placeEnt.map(([,v])=>v),backgroundColor:PIE6B,borderWidth:0,hoverOffset:6}]},
+    {cutout:'55%',plugins:{legend:{position:'right',labels:{color:'#7a8499',font:{size:8},boxWidth:8,padding:8}},tooltip:{...TIP,callbacks:{label:c=>` ${c.label}: ${c.raw} ครั้ง`}}}})
+
+  // ═══════════════════════════════════════════
+  // SECTION 15: Stock Coverage
+  // ═══════════════════════════════════════════
+  // รวม qty ต่อ SKU ก่อน (หลาย lot/wh → sum)
+  const stockByCode=new Map();
+  mayStock.items.forEach(x=>{
+    if(!stockByCode.has(x.code)){
+      stockByCode.set(x.code,{code:x.code,desc:x.desc,stock:0,exp:x.exp});
+    }
+    const e=stockByCode.get(x.code);
+    e.stock+=x.qty;
+    if(x.exp&&(!e.exp||x.exp>e.exp))e.exp=x.exp; // ใช้ EXP ไกลสุด
+  });
+  const coverageItems=[];
+  stockByCode.forEach(item=>{
+    const iss=issuedByItem[item.code];
+    const activeMo=iss?iss.moQty.filter(q=>q>0).length:0;
+    const avgMo=iss&&activeMo>0?iss.total/activeMo:0;
+    const cov=avgMo>0?item.stock/avgMo:999;
+    coverageItems.push({...item,avgMo,cov});
+  });
+  const atRiskAll=coverageItems.filter(x=>x.cov<999&&x.cov>=0).sort((a,b)=>a.cov-b.cov);
+  const atRisk=atRiskAll.slice(0,20);
+  const covBkt=[0,0,0,0,0,0]; // <1, 1-2, 2-3, 3-6, >6, no movement
+  coverageItems.forEach(x=>{
+    if(x.cov>=999)covBkt[5]++;
+    else if(x.cov<1)covBkt[0]++;
+    else if(x.cov<2)covBkt[1]++;
+    else if(x.cov<3)covBkt[2]++;
+    else if(x.cov<6)covBkt[3]++;
+    else covBkt[4]++;
+  });
+
+  const _covTot=atRiskAll.filter(x=>x.cov<2).length;
+  const _covEl=document.getElementById('covCount');
+  if(_covTot>0&&_covEl)_covEl.textContent=`— แสดง ${atRisk.length} / ${_covTot} รายการ`;
+  document.getElementById('tCoverage').innerHTML=atRisk.length
+    ?atRisk.map((x,n)=>{
+      const cl=x.cov<1?'var(--r)':x.cov<2?'var(--o)':'var(--y)';
+      return`<tr><td class="rk">${n+1}</td>
+      <td title="${x.desc||''}" style="max-width:220px"><div class="code">${x.code}</div><div class="nm" style="white-space:normal;word-break:break-word">${x.desc||'–'}</div></td>
+      <td class="num">${fmt(x.stock)}</td>
+      <td class="num">${fmt(x.avgMo)}</td>
+      <td class="num" style="color:${cl};font-weight:700">${x.cov.toFixed(1)} เดือน</td>
+      <td class="num" style="color:var(--ac);font-weight:600">${x.avgMo>0?fmt(Math.max(0,Math.round(x.avgMo*3-x.stock))):'–'}</td></tr>`;}).join('')
+    :`<tr><td colspan="5" style="text-align:center;color:var(--g);padding:14px">✅ ทุก SKU มี Stock Coverage เพียงพอ</td></tr>`;
+
+  const covLabels=['<1เดือน','1-2เดือน','2-3เดือน','3-6เดือน','>6เดือน','ไม่จ่าย'];
+  mkChart('cCoverage','bar',{
+    labels:covLabels,
+    datasets:[{label:'SKU',data:covBkt,backgroundColor:['rgba(248,112,108,.85)','rgba(248,168,108,.85)','rgba(248,201,108,.8)','rgba(86,217,160,.6)','rgba(86,217,160,.85)','rgba(120,120,140,.5)'],borderRadius:3}]
+  },{plugins:{legend:{display:false},tooltip:{...TIP,callbacks:{title:i=>covLabels[i[0].dataIndex],label:c=>` ${c.raw} SKU`}}},
+    scales:{x:{ticks:{color:'#7a8499',font:{size:9},maxRotation:0},grid:{color:GRD}},y:{ticks:tickCb(v=>v+' SKU'),grid:{color:GRD}}}});
+
+  // ═══════════════════════════════════════════
+  // SECTION 16: Dead Stock
+  // ═══════════════════════════════════════════
+  const deadStock=[];
+  const mayUniqueByCode=new Map();
+  const deadWhMap=new Map(); // รวม WH ทั้งหมดต่อ SKU
+  mayStock.items.forEach(x=>{
+    if(!mayUniqueByCode.has(x.code)){
+      mayUniqueByCode.set(x.code,{...x,qty:0});
+    }
+    mayUniqueByCode.get(x.code).qty+=x.qty;
+    if(x.exp&&(!mayUniqueByCode.get(x.code).exp||x.exp<mayUniqueByCode.get(x.code).exp))
+      mayUniqueByCode.get(x.code).exp=x.exp;
+    // รวบรวม WH ที่มีสินค้า
+    const wh=String(x.wh||'–').trim();
+    if(wh&&wh!=='–'){
+      if(!deadWhMap.has(x.code))deadWhMap.set(x.code,new Set());
+      deadWhMap.get(x.code).add(wh);
+    }
+  });
+  mayUniqueByCode.forEach((x,code)=>{
+    if(!issuedByItem[code]&&x.qty>0)deadStock.push(x);
+  });
+  deadStock.sort((a,b)=>b.qty-a.qty);
+
+  // ── Dead stock value from GRPO price map ──
+  // ราคารับเข้า/หน่วย จากชีต GRPO
+  const grpoPriceMap={};
+  {// weighted average unit price จาก GRPO
+    const _gm={};
+    grpo.forEach(r=>{if(r.code&&r.qty>0&&r.thb>0){
+      if(!_gm[r.code])_gm[r.code]={sv:0,sq:0};
+      _gm[r.code].sv+=r.thb; _gm[r.code].sq+=r.qty;
+    }});
+    Object.keys(_gm).forEach(k=>{const m=_gm[k];grpoPriceMap[k]=m.sq>0?m.sv/m.sq:0;});
+  }
+
+  // ราคาจ่ายออก/หน่วย จากชีตจ่ายออก (เฉลี่ยถ่วงน้ำหนักจากทุกเดือน)
+  const issuePriceMap={};
+  (issueArr||[]).forEach(mo=>{
+    mo.rows.forEach(r=>{
+      if(!r.code||r.qty<=0)return;
+      const up=r.up>0?r.up:(r.thb>0?r.thb/r.qty:0);
+      if(up>0){
+        if(!issuePriceMap[r.code])issuePriceMap[r.code]={sumVal:0,sumQty:0};
+        issuePriceMap[r.code].sumVal+=r.thb>0?r.thb:up*r.qty;
+        issuePriceMap[r.code].sumQty+=r.qty;
+      }
+    });
+  });
+  // แปลงเป็น weighted average unit price
+  Object.keys(issuePriceMap).forEach(k=>{
+    const m=issuePriceMap[k];
+    issuePriceMap[k]=m.sumQty>0?m.sumVal/m.sumQty:0;
+  });
+  window._issuePriceMap=issuePriceMap;
+  let deadStockVal=0;
+  deadStock.forEach(x=>{deadStockVal+=(grpoPriceMap[x.code]||0)*x.qty;});
+  window._deadStockData=deadStock;
+  window._grpoPriceMap=grpoPriceMap;
+  window._deadWhMap=deadWhMap;
+  document.getElementById('k6').textContent=deadStock.length;
+  if(document.getElementById('k6n'))document.getElementById('k6n').textContent=deadStockVal>0?'มูลค่า ~'+fmt(Math.round(deadStockVal))+'฿':'SKU ไม่มีการเบิกจ่าย';
+  document.getElementById('k7').textContent=fmt(issuedTotalByMo[5]||0);
+
+  // ── KPI k8: Inventory Turnover ──
+  const totalIssuedAll=issuedTotalByMo.reduce((s,v)=>s+v,0);
+  const nonZeroStock=stockTotals.filter(v=>v>0);
+  const avgStock=nonZeroStock.length>0?nonZeroStock.reduce((s,v)=>s+v,0)/nonZeroStock.length:0;
+  const turnover=avgStock>0?(totalIssuedAll/avgStock).toFixed(2):'–';
+  document.getElementById('k8').textContent=turnover!=='–'?turnover+'x':'–';
+
+  document.getElementById('tDeadStock').innerHTML=deadStock.length
+    ?deadStock.slice(0,30).map((x,n)=>{
+      const remY=x.exp?((x.exp-now)/31536e6):null;
+      const remCl=remY===null?'var(--mu)':remY<=0?'var(--r)':remY<=0.75?'var(--o)':'var(--g)';
+      const remStr=remY===null?'–':remY<=0?'⛔ หมดแล้ว':remY.toFixed(1)+' ปี';
+      const st=remY!==null&&remY<=0?'<span class="eb ec">☠️ หมดอายุ</span>':x.qty>500?'<span class="eb ec">🔴 High Qty</span>':x.qty>100?'<span class="eb ew">🟡 Monitor</span>':'<span class="eb eo">🟠 Low Qty</span>';
+      const unitP=grpoPriceMap[x.code]||0;
+      const val=unitP*x.qty;
+      const whSet=deadWhMap.get(x.code);
+      const whStr=whSet&&whSet.size>0?[...whSet].sort().join(', '):'–';
+      const rowBg=remY!==null&&remY<=0?'background:rgba(248,112,108,.06)':remY!==null&&remY<=0.5?'background:rgba(248,168,108,.04)':'';
+      return`<tr style="${rowBg}">
+        <td class="rk">${n+1}</td>
+        <td title="${x.desc||''}" style="max-width:240px"><div class="code">${x.code}</div><div class="nm" style="white-space:normal;word-break:break-word">${x.desc||'–'}</div></td>
+        <td class="num" style="font-weight:600">${fmt(x.qty)}</td>
+        <td class="num" style="color:${unitP>0?'var(--ac)':'var(--mu)'};font-size:.68rem">${unitP>0?fmt(unitP)+'฿':'–'}</td>
+        <td class="num" style="color:${val>0?'var(--y)':'var(--mu)'};font-weight:${val>0?'700':'400'}">${val>0?fmt(Math.round(val))+'฿':'–'}</td>
+        <td class="num" style="font-size:.62rem;color:var(--mu)">${whStr}</td>
+        <td class="num" style="font-size:.57rem;color:${remY!==null&&remY<=0?'var(--r)':'var(--mu)'}">${fmtD(x.exp)}</td>
+        <td class="num" style="color:${remCl};font-size:.6rem;font-weight:${remY!==null&&remY<=0?'700':'400'}">${remStr}</td>
+        <td>${st}</td>
+      </tr>`;}).join('')
+    :`<tr><td colspan="9" style="text-align:center;color:var(--g);padding:16px">✅ ไม่มี Dead Stock — ทุก SKU มีการเคลื่อนไหว</td></tr>`;
+
+  // ═══════════════════════════════════════════
+  // SECTION 11: By Vendor tab — Stock คงเหลือ พ.ค. รวมต่อ Vendor
+  // ═══════════════════════════════════════════
+  const suppStockMap={};
+  mayStock.items.forEach(x=>{
+    const vend=String(x.supp||'–').trim();
+    if(!vend||vend==='–')return;
+    suppStockMap[vend]=(suppStockMap[vend]||0)+x.qty;
+  });
+  const top12Supp=Object.entries(suppStockMap).sort((a,b)=>b[1]-a[1]).slice(0,12);
+  if(top12Supp.length>0){
+    const PALS=['rgba(86,217,160,.85)','rgba(100,149,237,.85)','rgba(248,168,108,.85)','rgba(220,120,220,.8)','rgba(108,200,240,.8)','rgba(248,112,108,.75)','rgba(180,220,100,.8)','rgba(255,190,70,.8)','rgba(140,100,220,.8)','rgba(100,210,180,.8)','rgba(230,160,100,.8)','rgba(160,200,240,.8)'];
+    mkChart('cVendorStock','bar',{
+      labels:top12Supp.map(([v])=>lbl(v,20)),
+      datasets:[{label:'Stock มิ.ย.',data:top12Supp.map(([,q])=>q),backgroundColor:top12Supp.map((_,i)=>PALS[i%PALS.length]),borderRadius:3}]
+    },{indexAxis:'y',plugins:{legend:{display:false},tooltip:{...TIP,callbacks:{title:i=>top12Supp[i[0].dataIndex][0],label:c=>` ${fmt(c.raw)} หน่วย`}}},
+      scales:{x:{ticks:{...tickCb(fmt),color:'#7a8499',font:{size:8}},grid:{color:GRD}},y:{ticks:{color:'#b0bec5',font:{size:8},autoSkip:false},grid:{display:false}}}});
+  }
+
+  // ═══════════════════════════════════════════
+  // SECTION 17: Monthly KPI Summary
+  // ═══════════════════════════════════════════
+  const s17Head=document.getElementById('tMonthlySummaryHead');
+  const s17Body=document.getElementById('tMonthlySummaryBody');
+  if(s17Head&&s17Body){
+    const thStyle='padding:5px 8px;text-align:right;border-bottom:1px solid var(--bd);color:var(--ac);font-size:.62rem;white-space:nowrap';
+    const tdStyle='padding:5px 8px;text-align:right;border-bottom:1px solid rgba(255,255,255,.04);font-size:.62rem;white-space:nowrap';
+    const lblStyle='padding:5px 8px;text-align:left;border-bottom:1px solid rgba(255,255,255,.04);font-size:.62rem;color:var(--mu);white-space:nowrap';
+    // Header
+    s17Head.innerHTML=`<tr><th style="${lblStyle}">KPI</th>${MO_FULL.map(m=>`<th style="${thStyle}">${m}</th>`).join('')}<th style="${thStyle}">เปลี่ยนแปลง<br>ม.ค.→มิ.ย.</th></tr>`;
+    // Rows
+    const pct=(a,b)=>b&&a?(((b-a)/Math.abs(a))*100).toFixed(1)+'%':'–';
+    const arw=(a,b,up)=>{if(!b||!a)return'';const r=(b-a)/Math.abs(a);const good=up?r>=0:r<=0;return`<span style="color:${good?'var(--g)':'var(--r)'}">${r>=0?'▲':'▼'}${Math.abs(r*100).toFixed(1)}%</span>`;};
+    // arwN = neutral (gray), arwU = up good (green/red), arwD = down good (green/red)
+    const arwN=(a,b)=>{if(!b||!a)return'';const r=(b-a)/Math.abs(a);return`<span style="color:var(--mu)">${r>=0?'▲':'▼'}${Math.abs(r*100).toFixed(1)}%</span>`;};
+    const arwU=(a,b)=>{if(!b||!a)return'';const r=(b-a)/Math.abs(a);return`<span style="color:${r>=0?'var(--g)':'var(--r)'}">${r>=0?'▲':'▼'}${Math.abs(r*100).toFixed(1)}%</span>`;};
+    const arwD=(a,b)=>{if(!b||!a)return'';const r=(b-a)/Math.abs(a);return`<span style="color:${r<=0?'var(--g)':'var(--r)'}">${r>=0?'▲':'▼'}${Math.abs(r*100).toFixed(1)}%</span>`;};
+    const rows17=[
+      {lb:'📦 รับเข้า — จำนวน (หน่วย)', data:moArr.map(m=>fmt(m.qty)), chg:arwN(moArr[0].qty,moArr[5].qty)},
+      {lb:'💰 รับเข้า — มูลค่า (฿)', data:moArr.map(m=>fmt(m.thb)), chg:arwN(moArr[0].thb,moArr[5].thb)},
+      {lb:'📋 ใบรับเข้า (GRPO) (ใบ)', data:moArr.map(m=>m.cnt||0), chg:arwN(moArr[0].cnt,moArr[5].cnt)},
+      {lb:'🏭 Stock คงเหลือ (หน่วย)', data:stockArr.map(s=>fmt(s.totalQty)), chg:arwU(stockArr[0].totalQty,stockArr[5].totalQty)},
+      {lb:'💊 จ่ายออก — จำนวน (หน่วย)', data:issuedTotalByMo.map(v=>fmt(v)), chg:arwU(issuedTotalByMo[0],issuedTotalByMo[5])},
+      {lb:'💵 จ่ายออก — มูลค่า (฿)', data:issuedValByMo.map(v=>v>0?fmt(v):'–'), chg:issuedValByMo[0]&&issuedValByMo[5]?arwU(issuedValByMo[0],issuedValByMo[5]):'–'},
+      {lb:'💤 Dead Stock (SKU)', data:(()=>{
+        return stockArr.map((s,mi)=>{
+          const issuedCodes=new Set((issueArr[mi]?.rows||[]).map(r=>r.code));
+          const uniq=new Set(s.items.filter(x=>x.qty>0).map(x=>x.code));
+          let cnt=0; uniq.forEach(c=>{if(!issuedCodes.has(c))cnt++;});
+          return cnt||'–';
+        });
+      })(), chg:''},
+    ];
+    s17Body.innerHTML=rows17.map(row=>`<tr><td style="${lblStyle}">${row.lb}</td>${row.data.map(v=>`<td style="${tdStyle}">${v}</td>`).join('')}<td style="${tdStyle}">${row.chg}</td></tr>`).join('');
+  }
+
+  // ═══════════════════════════════════════════
+  // ALERT SUMMARY
+  // ═══════════════════════════════════════════
+  const alerts=[
+    {icon:'⚠️',label:'ใกล้หมดอายุ <3 เดือน',val:nearItems.filter(x=>(x.exp-now)/31536e6<=0.25).length+' SKU',
+     sub:'ตรวจสอบด่วน',cl:'#f8706c',bg:'rgba(248,112,108,.1)',bd:'rgba(248,112,108,.25)'},
+    {icon:'📉',label:'Stock Coverage <2 เดือน',val:(()=>{
+      // รวม qty ต่อ SKU จาก stockByCode (ที่ sum แล้ว)
+      const avgIssued={};
+      for(let i=1;i<6;i++){issueArr[i].rows.forEach(r=>{avgIssued[r.code]=(avgIssued[r.code]||0)+r.qty;});}
+      return [...stockByCode.values()].filter(s=>{
+        const avg=(avgIssued[s.code]||0)/5;
+        return avg>0&&s.stock/avg<2;
+      }).length;
+    })() + ' SKU',
+     sub:'เสี่ยง stockout',cl:'#f8a86c',bg:'rgba(248,168,108,.1)',bd:'rgba(248,168,108,.25)'},
+    {icon:'💤',label:'Dead Stock',val:deadStockVal>0?fmt(deadStockVal)+'฿':deadStock.length+' SKU',
+     sub:deadStockVal>0?deadStock.length+' SKU — ไม่มีการเบิกจ่าย':'ไม่มีการเคลื่อนไหว',
+     cl:'#a78bfa',bg:'rgba(167,139,250,.1)',bd:'rgba(167,139,250,.25)'}
+  ];
+  const alertEl=document.getElementById('alertCards');
+  if(alertEl){
+    alertEl.innerHTML=alerts.map(a=>
+      `<div style="background:${a.bg};border:1px solid ${a.bd};border-radius:10px;padding:12px 14px">
+        <div style="font-size:1.1rem">${a.icon}</div>
+        <div style="font-size:.58rem;color:${a.cl};font-weight:700;margin:3px 0 1px;text-transform:uppercase;letter-spacing:.5px">${a.label}</div>
+        <div style="font-size:1.1rem;font-weight:900;color:#e2e8f0;line-height:1.1">${a.val}</div>
+        <div style="font-size:.58rem;color:var(--mu);margin-top:3px">${a.sub}</div>
+      </div>`).join('');
+    document.getElementById('alertSummary').style.display='block';
+  }
+
+  // ═══════════════════════════════════════════
+  // CHART: รับเข้า vs จ่ายออก
+  // ═══════════════════════════════════════════
+  mkChart('cInOutQty','bar',{
+    labels:MO_FULL,
+    datasets:[
+      {label:'รับเข้า (หน่วย)',data:moArr.map(m=>m.qty),backgroundColor:'rgba(108,143,248,.75)',borderRadius:3,stack:'no'},
+      {label:'จ่ายออก (หน่วย)',data:issuedTotalByMo,backgroundColor:'rgba(248,112,108,.65)',borderRadius:3,stack:'no'}
+    ]
+  },{plugins:{legend:{labels:{color:'#7a8499',font:{size:9},boxWidth:10,padding:10}},tooltip:{...TIP,callbacks:{label:c=>` ${c.dataset.label}: ${fmt(c.raw)} หน่วย`}}},
+    scales:{x:{ticks:tickCb(),grid:{color:GRD}},y:{ticks:tickCb(fmt),grid:{color:GRD}}}});
+
+  mkChart('cInOutVal','bar',{
+    labels:MO_FULL,
+    datasets:[
+      {label:'รับเข้า (฿)',data:moArr.map(m=>m.thb),backgroundColor:'rgba(86,217,160,.75)',borderRadius:3},
+      {label:'จ่ายออก (฿)',data:issuedValByMo.map(v=>v||0),backgroundColor:'rgba(248,168,108,.65)',borderRadius:3}
+    ]
+  },{plugins:{legend:{labels:{color:'#7a8499',font:{size:9},boxWidth:10,padding:10}},tooltip:{...TIP,callbacks:{label:c=>` ${c.dataset.label}: ${fmt(c.raw)}฿`}}},
+    scales:{x:{ticks:tickCb(),grid:{color:GRD}},y:{ticks:tickCb(v=>fmt(v)+'฿'),grid:{color:GRD}}}});
+
+  // ═══════════════════════════════════════════
+  // SECTION 12: ABC Analysis
+  // ═══════════════════════════════════════════
+  const abcItems=Object.entries(issuedByItem)
+    .map(([code,v])=>({code,desc:v.desc,val:v.totalVal,qty:v.total}))
+    .filter(x=>x.val>0)
+    .sort((a,b)=>b.val-a.val);
+  const abcTotalVal=abcItems.reduce((s,x)=>s+x.val,0);
+  let abcCum=0;
+  abcItems.forEach(x=>{
+    abcCum+=x.val;
+    const pct=abcTotalVal>0?abcCum/abcTotalVal*100:100;
+    x.cumPct=pct;
+    x.abc=pct<=80?'A':pct<=95?'B':'C';
+  });
+  window._abcItems=abcItems;
+  const abcCount={A:abcItems.filter(x=>x.abc==='A').length,B:abcItems.filter(x=>x.abc==='B').length,C:abcItems.filter(x=>x.abc==='C').length};
+  const abcVal={A:abcItems.filter(x=>x.abc==='A').reduce((s,x)=>s+x.val,0),B:abcItems.filter(x=>x.abc==='B').reduce((s,x)=>s+x.val,0),C:abcItems.filter(x=>x.abc==='C').reduce((s,x)=>s+x.val,0)};
+  // ABC KPI chips
+  const abcKpi=document.getElementById('abcKpiRow');
+  if(abcKpi){
+    const chips=[
+      {g:'A',cl:'var(--g)',bg:'rgba(86,217,160,.12)',bd:'rgba(86,217,160,.3)'},
+      {g:'B',cl:'var(--y)',bg:'rgba(248,201,108,.12)',bd:'rgba(248,201,108,.3)'},
+      {g:'C',cl:'var(--mu)',bg:'rgba(122,132,153,.1)',bd:'rgba(122,132,153,.25)'}
+    ];
+    abcKpi.innerHTML=chips.map(c=>`<div style="flex:1;background:${c.bg};border:1px solid ${c.bd};border-radius:8px;padding:8px 10px;text-align:center">
+      <div style="font-size:.75rem;font-weight:900;color:${c.cl}">กลุ่ม ${c.g}</div>
+      <div style="font-size:1rem;font-weight:800;color:var(--tx)">${abcCount[c.g]} SKU</div>
+      <div style="font-size:.55rem;color:var(--mu)">${abcTotalVal>0?(abcVal[c.g]/abcTotalVal*100).toFixed(1):'0'}% มูลค่า</div>
+    </div>`).join('');
+  }
+  mkChart('cABC','doughnut',{
+    labels:[`A (${abcCount.A} SKU)`,`B (${abcCount.B} SKU)`,`C (${abcCount.C} SKU)`],
+    datasets:[{data:[abcCount.A,abcCount.B,abcCount.C],backgroundColor:['rgba(86,217,160,.85)','rgba(248,201,108,.85)','rgba(122,132,153,.6)'],borderWidth:0,hoverOffset:6}]
+  },{cutout:'60%',plugins:{legend:{position:'bottom',labels:{color:'#7a8499',font:{size:9},boxWidth:8,padding:8}},
+    tooltip:{...TIP,callbacks:{label:c=>{const k=['A','B','C'][c.dataIndex];return[` ${c.label}`,` มูลค่า: ${fmt(abcVal[k])}฿ (${abcTotalVal>0?(abcVal[k]/abcTotalVal*100).toFixed(1):'0'}%)`];}}}}});
+  renderABCTable('all');
+
+  // ═══════════════════════════════════════════
+  // SECTION 13: FEFO Alert
+  // ═══════════════════════════════════════════
+  const fefoItems=mayStock.items
+    .filter(x=>x.qty>0&&x.exp)
+    .sort((a,b)=>a.exp-b.exp);
+  window._fefoItems=fefoItems;
+  renderFEFO();
+
+  // Last update
+  const ts=new Date();
+  document.getElementById('lastUpdate').textContent=`${ts.getHours()}:${String(ts.getMinutes()).padStart(2,'0')} น.`;
+
+  updateDebug();
+  document.getElementById('loading').style.display='none';
+  document.getElementById('main').style.display='block';
+}
+
+/* ── Tab helpers ── */
+function showStockTab(id){
+  document.getElementById('pTop').style.display=id==='top'?'':'none';
+  document.getElementById('pTrend').style.display=id==='trend'?'':'none';
+  document.getElementById('pVendor').style.display=id==='vendor'?'':'none';
+  document.querySelectorAll('#main .tabs .tab').forEach((t,i)=>{
+    if(t.closest('.card')===document.getElementById('pTop').closest('.card'))
+      t.classList.toggle('on',(id==='top'&&i===0)||(id==='trend'&&i===1)||(id==='vendor'&&i===2));
+  });
+}
+function showExpTab(id){
+  document.getElementById('pNear').style.display=id==='near'?'':'none';
+  document.getElementById('pLong').style.display=id==='long'?'':'none';
+  document.querySelectorAll('#main .tabs .tab').forEach((t,i)=>{
+    if(t.closest('.card')===document.getElementById('pNear').closest('.card'))
+      t.classList.toggle('on',(id==='near'&&i===0)||(id==='long'&&i===1));
+  });
+}
+
+/* ── Debug ── */
+let dbgVis=false;
+function toggleDebug(){
+  dbgVis=!dbgVis;
+  document.getElementById('dbgPanel').style.display=dbgVis?'block':'none';
+  updateDebug();
+}
+function updateDebug(){
+  const d=_dbg;
+  document.getElementById('dbgText').textContent=JSON.stringify({
+    grpoCols:d.grpoCols,
+    grpoDetected:d.grpoDetected,
+    grpoRows:d.grpoRows,
+    stockFallback:d.stockFallback,
+    stockInfo:(d.stockInfo||[]).map(s=>({
+      month:s.moLabel,
+      cols:s.cols,
+      detected:s.detected,
+      qtyColName:s.qtyColName,
+      codeColName:s.codeColName,
+      itemCount:s.itemCount,
+      totalQty:s.totalQty
+    })),
+    issueInfo:d.issueInfo
+  },null,2);
+}
+
+// ── ABC helpers ──
+function renderABCTable(filter){
+  const items=(window._abcItems||[]).filter(x=>filter==='all'||x.abc===filter);
+  const ABC_CL={A:'rgba(86,217,160,.85)',B:'rgba(248,201,108,.85)',C:'rgba(122,132,153,.7)'};
+  const ABC_BG={A:'rgba(86,217,160,.12)',B:'rgba(248,201,108,.1)',C:'rgba(122,132,153,.06)'};
+  const el=document.getElementById('tABC');
+  if(!el)return;
+  el.innerHTML=items.length
+    ?items.map((x,n)=>`<tr>
+      <td class="rk">${n+1}</td>
+      <td title="${x.desc}" style="max-width:220px"><div class="code">${x.code}</div><div class="nm" style="white-space:normal;word-break:break-word">${x.desc||'–'}</div></td>
+      <td class="num" style="color:var(--y)">${x.val>0?fmt(x.val)+'฿':'–'}</td>
+      <td class="num" style="color:var(--mu)">${x.cumPct.toFixed(1)}%</td>
+      <td><span class="eb" style="background:${ABC_BG[x.abc]};color:${ABC_CL[x.abc]};border:1px solid ${ABC_CL[x.abc]}">กลุ่ม ${x.abc}</span></td>
+    </tr>`).join('')
+    :`<tr><td colspan="5" style="text-align:center;color:var(--mu);padding:14px">ไม่มีข้อมูล</td></tr>`;
+}
+function filterABC(g){
+  ['all','A','B','C'].forEach(k=>{
+    const el=document.getElementById('abc'+(k==='all'?'All':k));
+    if(el)el.classList.toggle('on',k===g);
+  });
+  renderABCTable(g);
+}
+
+// ── FEFO helpers ──
+function renderFEFO(){
+  const now=new Date();
+  const filter=document.getElementById('fefoFilter')?.value||'all';
+  let items=(window._fefoItems||[]);
+  if(filter==='expired')items=items.filter(x=>(x.exp-now)/31536e6<=0);
+  else if(filter==='3m')items=items.filter(x=>{const y=(x.exp-now)/31536e6;return y>0&&y<=0.25;});
+  else if(filter==='6m')items=items.filter(x=>{const y=(x.exp-now)/31536e6;return y>0&&y<=0.5;});
+  else if(filter==='9m')items=items.filter(x=>{const y=(x.exp-now)/31536e6;return y>0&&y<=0.75;});
+  const el=document.getElementById('tFEFO');
+  if(!el)return;
+  el.innerHTML=items.length
+    ?items.slice(0,50).map((x,n)=>{
+      const y=(x.exp-now)/31536e6;
+      const[cl,lb]=y<=0?['var(--r)','⛔ หมดแล้ว']:y<=0.25?['var(--r)','🔴 <3 เดือน']:y<=0.5?['var(--o)','🟠 <6 เดือน']:y<=0.75?['var(--y)','🟡 <9 เดือน']:['var(--g)','✅ ปกติ'];
+      const rowBg=y<=0?'background:rgba(248,112,108,.07)':y<=0.25?'background:rgba(248,112,108,.04)':'';
+      const remStr=y<=0?'หมดแล้ว':(y*12).toFixed(1)+' เดือน';
+      return`<tr style="${rowBg}">
+        <td class="rk">${n+1}</td>
+        <td style="max-width:200px"><div class="code">${x.code}</div><div class="nm" style="white-space:normal;word-break:break-word">${x.desc||'–'}</div></td>
+        <td style="font-size:.62rem;color:var(--y);font-family:monospace">${x.batch&&x.batch!=='–'?x.batch:'–'}</td>
+        <td class="num" style="color:${cl};font-size:.62rem;white-space:nowrap">${fmtD(x.exp)}</td>
+        <td class="num" style="color:${cl};font-size:.62rem">${remStr}</td>
+        <td class="num" style="font-weight:600">${fmt(x.qty)}</td>
+        <td class="num" style="font-size:.6rem;color:var(--mu)">${x.wh||'–'}</td>
+        <td><span class="eb" style="background:${y<=0?'rgba(248,112,108,.2)':y<=0.25?'rgba(248,112,108,.15)':y<=0.5?'rgba(248,168,108,.15)':y<=0.75?'rgba(248,201,108,.15)':'rgba(86,217,160,.1)'};color:${cl};border:1px solid ${cl}">${lb}</span></td>
+      </tr>`;}).join('')+(items.length>50?`<tr><td colspan="8" style="text-align:center;color:var(--mu);padding:8px;font-size:.6rem">...และอีก ${items.length-50} รายการ — Export CSV เพื่อดูทั้งหมด</td></tr>`:'')
+    :`<tr><td colspan="8" style="text-align:center;color:var(--g);padding:16px">✅ ไม่มี LOT ที่ต้องแจ้งเตือน</td></tr>`;
+}
+
+// ── Downloads ──
+function downloadABC(){
+  const data=window._abcItems||[];
+  if(!data.length){alert('ไม่มีข้อมูล ABC');return;}
+  const rows=[['#','Item Code','ชื่อสินค้า','มูลค่าจ่ายออก (฿)','จำนวน (หน่วย)','สะสม%','กลุ่ม ABC']];
+  data.forEach((x,i)=>rows.push([i+1,x.code,x.desc,x.val>0?Math.round(x.val):'–',x.qty,x.cumPct.toFixed(1)+'%',x.abc]));
+  const csv=rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'}));
+  a.download=`ABC_Analysis_${new Date().toISOString().slice(0,10)}.csv`;a.click();
+}
+function downloadFEFO(){
+  const data=window._fefoItems||[];
+  if(!data.length){alert('ไม่มีข้อมูล FEFO');return;}
+  const now=new Date();
+  const rows=[['#','Item Code','ชื่อสินค้า','LOT/Batch','EXP','อายุเหลือ (เดือน)','Stock (หน่วย)','คลัง','สถานะ']];
+  data.forEach((x,i)=>{
+    const y=(x.exp-now)/31536e6;
+    const st=y<=0?'หมดแล้ว':y<=0.25?'<3 เดือน':y<=0.5?'<6 เดือน':y<=0.75?'<9 เดือน':'ปกติ';
+    rows.push([i+1,x.code,x.desc||'',x.batch||'–',x.exp?x.exp.toLocaleDateString('th-TH'):'–',(y*12).toFixed(1),x.qty,x.wh||'–',st]);
+  });
+  const csv=rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'}));
+  a.download=`FEFO_Alert_${new Date().toISOString().slice(0,10)}.csv`;a.click();
+}
+
+Chart.defaults.font.family="'Segoe UI',system-ui,sans-serif";
+loadData();
+setInterval(loadData,10*60*1000);
+
+// ── Search ──
+let _searchData=null;
+function buildSearchData(){
+  if(_searchData)return;
+  const now=new Date();
+  // stockMap: รวม qty ทุก lot/wh (sum) และเก็บ meta จาก row แรก
+  const stockMap=new Map();
+  (window._junStockItems||[]).forEach(x=>{
+    if(!stockMap.has(x.code)){
+      stockMap.set(x.code,{...x,totalQty:x.qty});
+    } else {
+      stockMap.get(x.code).totalQty+=x.qty;
+      // อัปเดต exp ให้ใช้ที่ไกลสุด (longest shelf life)
+      if(x.exp&&(!stockMap.get(x.code).exp||x.exp>stockMap.get(x.code).exp))
+        stockMap.get(x.code).exp=x.exp;
+    }
+  });
+  const issueMap=window._issuedByItem||{};
+  // collect lot details per code (batch + exp + qty per row)
+  const batchMap=new Map();
+  (window._junStockItems||[]).forEach(x=>{
+    if(!batchMap.has(x.code))batchMap.set(x.code,[]);
+    if(x.batch&&x.batch!=='–'&&x.batch!==''){
+      batchMap.get(x.code).push({batch:x.batch,exp:x.exp,qty:x.qty,wh:x.wh||'–'});
+    }
+  });
+  const allCodes=new Set([...stockMap.keys(),...Object.keys(issueMap)]);
+  _searchData=[...allCodes].map(c=>{
+    const s=stockMap.get(c)||{totalQty:0,qty:0,desc:'',exp:null};
+    const iss=issueMap[c]||{total:0};
+    const allLots=(batchMap.get(c)||[]);
+    const lots=allLots.slice(0,8);  // แสดงสูงสุด 8 lots
+    const issuePrice=(window._issuePriceMap||{})[c]||0;
+    return{code:c,desc:s.desc,qty:s.totalQty||s.qty,exp:s.exp,issued:iss.total||0,lots,totalLots:allLots.length,issuePrice};
+  });
+}
+function doSearch(q){
+  q=q.trim().toLowerCase();
+  const res=document.getElementById('searchResult');
+  const body=document.getElementById('searchBody');
+  if(!q){res.style.display='none';return;}
+  buildSearchData();
+  const matches=(_searchData||[]).filter(x=>x.code.toLowerCase().includes(q)||x.desc.toLowerCase().includes(q)).slice(0,20);
+  if(!matches.length){body.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--mu);padding:12px">ไม่พบสินค้า</td></tr>';res.style.display='block';return;}
+  const now=new Date();
+  body.innerHTML=matches.map(x=>{
+    const remY=x.exp?(x.exp-now)/31536e6:null;
+    const expCl=remY===null?'var(--mu)':remY<=0?'var(--r)':remY<=0.25?'var(--o)':'var(--g)';
+    const st=remY===null?'–':remY<=0?'<span style="color:var(--r)">⛔ หมดแล้ว</span>':remY<=0.25?'<span style="color:var(--o)">🔴 &lt;3 เดือน</span>':remY<=0.75?'<span style="color:var(--y)">🟡 &lt;9 เดือน</span>':'<span style="color:var(--g)">✅ ปกติ</span>';
+    const lotHtml=x.lots&&x.lots.length
+      ?x.lots.map(l=>{
+          const ly=l.exp?(l.exp-now)/31536e6:null;
+          const lcl=ly===null?'var(--mu)':ly<=0?'var(--r)':ly<=0.25?'var(--o)':ly<=1?'var(--y)':'var(--g)';
+          return`<div style="display:flex;gap:6px;align-items:center;padding:2px 0;border-bottom:1px solid rgba(255,255,255,.04)">
+            <span style="color:var(--y);font-family:monospace;font-size:.6rem;min-width:84px">${l.batch||'–'}</span>
+            <span style="color:${lcl};font-size:.57rem;min-width:72px">${l.exp?fmtD(l.exp):'–'}</span>
+            <span style="color:#cdd5e0;font-size:.6rem;min-width:44px;text-align:right">${fmt(l.qty)}</span>
+            <span style="color:var(--mu);font-size:.57rem;min-width:56px;padding-left:4px">${l.wh||'–'}</span>
+          </div>`;}).join('')+(x.totalLots>x.lots.length?`<div style="font-size:.55rem;color:var(--mu);padding:2px 0">...และอีก ${x.totalLots-x.lots.length} lots</div>`:'')
+      :'–';
+    return`<tr>
+    <td><div class="code">${x.code}</div></td>
+    <td><div class="nm" style="max-width:180px">${x.desc}</div></td>
+    <td style="min-width:320px">${lotHtml}</td>
+    <td class="num">${fmt(x.qty)}</td>
+    <td class="num">${x.issued>0?fmt(x.issued):'–'}</td>
+    <td class="num" style="color:${x.issuePrice>0?'#56d9a0':'var(--mu)'};font-size:.68rem">${x.issuePrice>0?fmt(x.issuePrice)+'฿':'–'}</td>
+    <td>${st}</td></tr>`;
+  }).join('');
+  res.style.display='block';
+}
+function clearSearch(){document.getElementById('searchInput').value='';document.getElementById('searchResult').style.display='none';}
+
+// ── Download Dead Stock as CSV ──
+function downloadDeadStock(){
+  const data=window._deadStockData||[];
+  const gMap=window._grpoPriceMap||{};
+  const iMap=window._issuePriceMap||{};
+  if(!data.length){alert('ไม่มีข้อมูล Dead Stock (โหลดข้อมูลก่อนแล้วลองใหม่)');return;}
+  const rows=[['#','Item Code','ชื่อสินค้า','Stock มิ.ย.','ราคา/หน่วย GRPO (฿)','มูลค่ารวม (฿)','คลัง','EXP (ใกล้สุด)','อายุเหลือ (ปี)','Supplier']];
+  const now=new Date();
+  data.forEach((x,i)=>{
+    const unitP=gMap[x.code]||0;
+    const val=Math.round(unitP*x.qty);
+    const remY=x.exp?((x.exp-now)/31536e6).toFixed(2):'–';
+    const whS=(window._deadWhMap&&window._deadWhMap.get&&window._deadWhMap.get(x.code))?[...(window._deadWhMap.get(x.code)||[])].join(', '):x.wh||'–';
+    rows.push([i+1,x.code,x.desc,x.qty,unitP>0?unitP.toFixed(2):'–',val>0?Math.round(val):'–',
+      whS,x.exp?x.exp.toLocaleDateString('th-TH'):'–',remY,x.supp||'–']);
+  });
+  const csv=rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download=`DeadStock_${new Date().toISOString().slice(0,10)}.csv`;a.click();
+}
+
+// ── Download near-expiry (<3 months) as CSV ──
+function downloadNearExp(){
+  if(!window._nearExpItems||window._nearExpItems.length===0){
+    alert('ไม่มีข้อมูลสินค้าใกล้หมดอายุ (โหลดข้อมูลก่อนแล้วลองใหม่)');return;
+  }
+  const rows=[['ลำดับ','Item No.','ชื่อสินค้า','วันหมดอายุ','สถานะ']];
+  const now=new Date();
+  window._nearExpItems.forEach((x,i)=>{
+    const y=(x.exp-now)/31536e6;
+    const st=y<=0?'หมดแล้ว':y<=0.25?'<3 เดือน':'<6 เดือน';
+    const expStr=x.exp instanceof Date?x.exp.toLocaleDateString('th-TH'):'';
+    rows.push([i+1,x.code,x.desc||'',expStr,st]);
+  });
+  const csv=rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n');
+  const bom='\uFEFF';
+  const blob=new Blob([bom+csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download='near_expiry_3mo_'+new Date().toISOString().slice(0,10)+'.csv';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+</script>
+</body>
+</html>
