@@ -63,7 +63,8 @@ body{background:var(--bg);color:var(--tx);font-family:'Segoe UI',system-ui,sans-
 .page{padding:14px 18px 56px;display:flex;flex-direction:column;gap:0}
 
 /* ===== ZONE (grouped section) ===== */
-.zone{margin-bottom:28px}
+.zone{margin-bottom:28px;display:none}
+.zone.active{display:block}
 .zone-hd{
   display:flex;align-items:center;gap:10px;margin-bottom:12px;
   padding:10px 14px;background:var(--card2);border-radius:var(--r8);
@@ -259,13 +260,13 @@ tr:hover td{background:rgba(255,255,255,.025)}
 
 <!-- ===== SECTION NAVIGATION ===== -->
 <nav class="sec-nav" aria-label="Section Navigation">
-  <button class="snav-btn" onclick="scrollToZone('#zone-overview')">📊 ภาพรวม</button>
-  <button class="snav-btn" onclick="scrollToZone('#zone-receiving')">📥 รับเข้า</button>
-  <button class="snav-btn" onclick="scrollToZone('#zone-stock')">📦 Stock</button>
-  <button class="snav-btn" onclick="scrollToZone('#zone-issued')">📤 จำหน่ายออก</button>
-  <button class="snav-btn" onclick="scrollToZone('#zone-alert')">⚠️ แจ้งเตือน</button>
-  <button class="snav-btn" onclick="scrollToZone('#zone-analysis')">📐 วิเคราะห์</button>
-  <button class="snav-btn" onclick="scrollToZone('#zone-ops')">🏭 ปฏิบัติการ</button>
+  <button class="snav-btn active" onclick="showZone('zone-overview',this)">📊 ภาพรวม</button>
+  <button class="snav-btn" onclick="showZone('zone-receiving',this)">📥 รับเข้า</button>
+  <button class="snav-btn" onclick="showZone('zone-stock',this)">📦 Stock</button>
+  <button class="snav-btn" onclick="showZone('zone-issued',this)">📤 จำหน่ายออก</button>
+  <button class="snav-btn" onclick="showZone('zone-alert',this)">⚠️ แจ้งเตือน</button>
+  <button class="snav-btn" onclick="showZone('zone-analysis',this)">📐 วิเคราะห์</button>
+  <button class="snav-btn" onclick="showZone('zone-ops',this)">🏭 ปฏิบัติการ</button>
 </nav>
 
 <!-- ===== LOADING / ERROR / DEBUG ===== -->
@@ -282,7 +283,7 @@ tr:hover td{background:rgba(255,255,255,.025)}
 <div class="page">
 
 <!-- ===== ZONE: ภาพรวม (Overview KPIs) ===== -->
-<div class="zone" id="zone-overview">
+<div class="zone active" id="zone-overview">
 
   <!-- KPI Row (8 cards) -->
   <div class="kpi-row" style="margin-bottom:12px">
@@ -704,30 +705,22 @@ tr:hover td{background:rgba(255,255,255,.025)}
 
 <script>
 // ===== SECTION NAVIGATION HELPER =====
-function scrollToZone(id){
-  const el=document.querySelector(id);
-  if(el){
-    const offset=100; // header + nav height
-    const top=el.getBoundingClientRect().top+window.pageYOffset-offset;
-    window.scrollTo({top,behavior:'smooth'});
-  }
+// แสดงเฉพาะ zone ที่เลือก ซ่อน zone อื่นทั้งหมด (true tab switching)
+function showZone(id,btn){
+  document.querySelectorAll('.zone').forEach(z=>z.classList.toggle('active',z.id===id));
+  document.querySelectorAll('.snav-btn').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  window.scrollTo({top:0,behavior:'smooth'});
+  // Chart.js สร้างกราฟตอน zone ซ่อนอยู่ (display:none) จะได้ขนาด 0x0
+  // ต้อง resize ใหม่ทุกครั้งที่ zone กลับมาแสดง ไม่งั้นกราฟจะเบลอ/ไม่ขึ้น
+  requestAnimationFrame(()=>{
+    try{
+      if(typeof charts==='object'&&charts){
+        Object.keys(charts).forEach(k=>{ try{ charts[k]&&charts[k].resize(); }catch(e){} });
+      }
+    }catch(e){}
+  });
 }
-// Highlight active section in nav on scroll
-(function(){
-  const zones=['zone-overview','zone-receiving','zone-stock','zone-issued','zone-alert','zone-analysis','zone-ops'];
-  const btns=document.querySelectorAll('.snav-btn');
-  function onScroll(){
-    const scrollY=window.pageYOffset+130;
-    let active=0;
-    zones.forEach((id,i)=>{
-      const el=document.getElementById(id);
-      if(el&&el.offsetTop<=scrollY)active=i;
-    });
-    btns.forEach((b,i)=>{b.classList.toggle('active',i===active)});
-  }
-  window.addEventListener('scroll',onScroll,{passive:true});
-  onScroll();
-})();
 </script>
 
 <script>
