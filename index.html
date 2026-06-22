@@ -259,13 +259,13 @@ tr:hover td{background:rgba(255,255,255,.025)}
 
 <!-- ===== SECTION NAVIGATION ===== -->
 <nav class="sec-nav" aria-label="Section Navigation">
-  <button class="snav-btn" onclick="scrollTo('#zone-overview')">📊 ภาพรวม</button>
-  <button class="snav-btn" onclick="scrollTo('#zone-receiving')">📥 รับเข้า</button>
-  <button class="snav-btn" onclick="scrollTo('#zone-stock')">📦 Stock</button>
-  <button class="snav-btn" onclick="scrollTo('#zone-issued')">📤 จำหน่ายออก</button>
-  <button class="snav-btn" onclick="scrollTo('#zone-alert')">⚠️ แจ้งเตือน</button>
-  <button class="snav-btn" onclick="scrollTo('#zone-analysis')">📐 วิเคราะห์</button>
-  <button class="snav-btn" onclick="scrollTo('#zone-ops')">🏭 ปฏิบัติการ</button>
+  <button class="snav-btn" onclick="scrollToZone('#zone-overview')">📊 ภาพรวม</button>
+  <button class="snav-btn" onclick="scrollToZone('#zone-receiving')">📥 รับเข้า</button>
+  <button class="snav-btn" onclick="scrollToZone('#zone-stock')">📦 Stock</button>
+  <button class="snav-btn" onclick="scrollToZone('#zone-issued')">📤 จำหน่ายออก</button>
+  <button class="snav-btn" onclick="scrollToZone('#zone-alert')">⚠️ แจ้งเตือน</button>
+  <button class="snav-btn" onclick="scrollToZone('#zone-analysis')">📐 วิเคราะห์</button>
+  <button class="snav-btn" onclick="scrollToZone('#zone-ops')">🏭 ปฏิบัติการ</button>
 </nav>
 
 <!-- ===== LOADING / ERROR / DEBUG ===== -->
@@ -704,7 +704,7 @@ tr:hover td{background:rgba(255,255,255,.025)}
 
 <script>
 // ===== SECTION NAVIGATION HELPER =====
-function scrollTo(id){
+function scrollToZone(id){
   const el=document.querySelector(id);
   if(el){
     const offset=100; // header + nav height
