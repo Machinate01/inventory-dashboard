@@ -551,7 +551,7 @@ tr:hover td{background:rgba(255,255,255,.025)}
           <span style="font-size:.6rem;color:var(--mu)">สินค้าที่จะหมดอายุภายใน 3 เดือน</span>
           <button onclick="downloadNearExp()" style="background:rgba(248,112,108,.12);color:var(--r);border:1px solid rgba(248,112,108,.3);border-radius:var(--r4);padding:3px 9px;font-size:.58rem;cursor:pointer">📥 Export CSV</button>
         </div>
-        <table><thead><tr><th>#</th><th>สินค้า (Item No.)</th><th>EXP</th><th>สถานะ</th></tr></thead>
+        <table><thead><tr><th>#</th><th>สินค้า (Item No.)</th><th class="num">Stock (หน่วย)</th><th>EXP</th><th>สถานะ</th></tr></thead>
         <tbody id="tNear"></tbody></table>
       </div>
       <div id="pLong" class="tw" style="display:none">
@@ -682,6 +682,7 @@ tr:hover td{background:rgba(255,255,255,.025)}
           <th class="num">Stock มิ.ย.</th>
           <th class="num">ราคา/หน่วย<div style="font-size:.5rem;font-weight:400;color:var(--mu)">GRPO (฿)</div></th>
           <th class="num">มูลค่ารวม<div style="font-size:.5rem;font-weight:400;color:var(--mu)">ประมาณ (฿)</div></th>
+          <th>Supplier</th>
           <th class="num">คลัง</th>
           <th class="num">EXP (ใกล้สุด)</th>
           <th class="num">อายุเหลือ</th>
@@ -706,7 +707,12 @@ tr:hover td{background:rgba(255,255,255,.025)}
   <div class="grid-3" style="min-height:230px;margin-bottom:8px">
     <div class="card">
       <div class="ct">เวลาตรวจรับเฉลี่ย — รายเดือน</div>
-      <div class="cs">Total/Time Min (ตรวจรับ)</div>
+      <div class="cs" style="display:flex;align-items:center;gap:5px">
+        <span>Total/Time Min (ตรวจรับ) · Target=</span>
+        <input id="targetTime" type="number" value="30" min="5" max="240" step="5" onchange="updateTargetLine()"
+          style="width:36px;background:rgba(255,255,255,.06);border:1px solid var(--bd);border-radius:var(--r4);color:var(--y);font-size:.58rem;padding:1px 4px;text-align:center;outline:none;font-family:inherit">
+        <span>นาที</span>
+      </div>
       <div class="ch"><canvas id="cTimeMonth"></canvas></div>
     </div>
     <div class="card">
@@ -762,6 +768,11 @@ function showZone(id,btn){
       }
     }catch(e){}
   });
+}
+// ใช้จากปุ่ม/การ์ดที่ไม่ได้เป็นปุ่ม nav โดยตรง (เช่น Alert card) — หา nav button ที่ตรงกับ zone แล้วเรียก showZone ให้ active state ตรงกัน
+function goToZone(id){
+  const btn=[...document.querySelectorAll('.snav-btn')].find(b=>(b.getAttribute('onclick')||'').includes(`'${id}'`));
+  showZone(id,btn);
 }
 </script>
 
@@ -1470,9 +1481,10 @@ function render(grpo,stockArr,issueArr){
         const y=(x.exp-now)/31536e6;
         const[cl,lb2]=y<=0?['ec','⛔ หมดแล้ว']:y<=0.25?['ec','🔴 <3 เดือน']:y<=0.5?['ew','🟠 <6 เดือน']:['eo','🟡 <9 เดือน'];
         return`<tr><td class="rk">${n+1}</td><td title="${x.desc||''}" style="max-width:220px"><div class="code">${x.code}</div><div class="nm" style="white-space:normal;word-break:break-word">${x.desc||'–'}</div></td>
+        <td class="num" style="font-weight:600">${fmt(x.qty)}</td>
         <td style="font-size:.6rem;color:var(--o);white-space:nowrap">${fmtD(x.exp)}</td><td><span class="eb ${cl}">${lb2}</span></td></tr>`;
       }).join('')
-    :`<tr><td colspan="4" style="text-align:center;color:var(--g);padding:14px">✅ ไม่มีสินค้าใกล้หมดอายุ</td></tr>`;
+    :`<tr><td colspan="5" style="text-align:center;color:var(--g);padding:14px">✅ ไม่มีสินค้าใกล้หมดอายุ</td></tr>`;
   document.getElementById('tLong').innerHTML=longItems.slice(0,12).map((x,n)=>{
     const y=((x.exp-now)/31536e6).toFixed(1);
     return`<tr><td class="rk">${n+1}</td><td title="${x.desc||''}" style="max-width:220px"><div class="code">${x.code}</div><div class="nm" style="white-space:normal;word-break:break-word">${x.desc||'–'}</div></td>
@@ -1518,7 +1530,8 @@ function render(grpo,stockArr,issueArr){
     <span style="display:flex;flex-direction:column;align-items:flex-end"><span style="font-size:.85rem;font-weight:700;color:${x.c}">${x.v}</span>${x.note?`<span style="font-size:.48rem;color:var(--mu)">${x.note}</span>`:''}</span>
   </div>`).join('');
 
-  mkChart('cTimeMonth','bar',{labels:MO_FULL,datasets:[{label:'avg นาที',data:avgTimeByMo,backgroundColor:'rgba(108,143,248,.7)',borderRadius:3},{type:'line',label:'Target 30 นาที',data:Array(6).fill(30),borderColor:'rgba(248,112,108,.8)',borderWidth:1.5,borderDash:[5,4],pointRadius:0,fill:false}]},
+  const targetMin=parseFloat(document.getElementById('targetTime')?.value)||30;
+  mkChart('cTimeMonth','bar',{labels:MO_FULL,datasets:[{label:'avg นาที',data:avgTimeByMo,backgroundColor:'rgba(108,143,248,.7)',borderRadius:3},{type:'line',label:`Target ${targetMin} นาที`,data:Array(CFG_MONTHS).fill(targetMin),borderColor:'rgba(248,112,108,.8)',borderWidth:1.5,borderDash:[5,4],pointRadius:0,fill:false}]},
     {plugins:{legend:{display:false},tooltip:{...TIP,callbacks:{label:c=>` ${c.raw} นาที`}}},
      scales:{x:{ticks:tickCb(),grid:{color:GRD}},y:{ticks:tickCb(v=>v+'น.'),grid:{color:GRD}}}});
 
@@ -1702,12 +1715,13 @@ function render(grpo,stockArr,issueArr){
         <td class="num" style="font-weight:600">${fmt(x.qty)}</td>
         <td class="num" style="color:${unitP>0?'var(--ac)':'var(--mu)'};font-size:.68rem">${unitP>0?fmt(unitP)+'฿':'–'}</td>
         <td class="num" style="color:${val>0?'var(--y)':'var(--mu)'};font-weight:${val>0?'700':'400'}">${val>0?fmt(Math.round(val))+'฿':'–'}</td>
+        <td style="font-size:.6rem;color:var(--mu);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${x.supp||''}">${x.supp&&x.supp!=='–'?x.supp:'–'}</td>
         <td class="num" style="font-size:.62rem;color:var(--mu)">${whStr}</td>
         <td class="num" style="font-size:.57rem;color:${remY!==null&&remY<=0?'var(--r)':'var(--mu)'}">${fmtD(x.exp)}</td>
         <td class="num" style="color:${remCl};font-size:.6rem;font-weight:${remY!==null&&remY<=0?'700':'400'}">${remStr}</td>
         <td>${st}</td>
       </tr>`;}).join('')
-    :`<tr><td colspan="9" style="text-align:center;color:var(--g);padding:16px">✅ ไม่มี Dead Stock — ทุก SKU มีการเคลื่อนไหว</td></tr>`;
+    :`<tr><td colspan="10" style="text-align:center;color:var(--g);padding:16px">✅ ไม่มี Dead Stock — ทุก SKU มีการเคลื่อนไหว</td></tr>`;
 
   // ═══════════════════════════════════════════
   // SECTION 11: By Vendor tab — Stock คงเหลือ พ.ค. รวมต่อ Vendor
@@ -1771,7 +1785,7 @@ function render(grpo,stockArr,issueArr){
   // ═══════════════════════════════════════════
   const alerts=[
     {icon:'⚠️',label:'ใกล้หมดอายุ <3 เดือน',val:nearItems.filter(x=>(x.exp-now)/31536e6<=0.25).length+' SKU',
-     sub:'ตรวจสอบด่วน',cl:'#f8706c',bg:'rgba(248,112,108,.1)',bd:'rgba(248,112,108,.25)'},
+     sub:'ตรวจสอบด่วน',cl:'#f8706c',bg:'rgba(248,112,108,.1)',bd:'rgba(248,112,108,.25)',zone:'zone-alert'},
     {icon:'📉',label:'Stock Coverage <2 เดือน',val:(()=>{
       // รวม qty ต่อ SKU จาก stockByCode (ที่ sum แล้ว)
       const avgIssued={};
@@ -1782,19 +1796,21 @@ function render(grpo,stockArr,issueArr){
         return avg>0&&s.stock/avg<2;
       }).length;
     })() + ' SKU',
-     sub:'เสี่ยง stockout',cl:'#f8a86c',bg:'rgba(248,168,108,.1)',bd:'rgba(248,168,108,.25)'},
+     sub:'เสี่ยง stockout',cl:'#f8a86c',bg:'rgba(248,168,108,.1)',bd:'rgba(248,168,108,.25)',zone:'zone-alert'},
     {icon:'💤',label:'Dead Stock',val:deadStockVal>0?fmt(deadStockVal)+'฿':deadStock.length+' SKU',
      sub:deadStockVal>0?deadStock.length+' SKU — ไม่มีการเบิกจ่าย':'ไม่มีการเคลื่อนไหว',
-     cl:'#a78bfa',bg:'rgba(167,139,250,.1)',bd:'rgba(167,139,250,.25)'}
+     cl:'#a78bfa',bg:'rgba(167,139,250,.1)',bd:'rgba(167,139,250,.25)',zone:'zone-analysis'}
   ];
   const alertEl=document.getElementById('alertCards');
   if(alertEl){
     alertEl.innerHTML=alerts.map(a=>
-      `<div style="background:${a.bg};border:1px solid ${a.bd};border-radius:10px;padding:12px 14px">
+      `<div style="background:${a.bg};border:1px solid ${a.bd};border-radius:10px;padding:12px 14px;cursor:pointer;transition:transform .15s" onclick="goToZone('${a.zone}')" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform=''">
         <div style="font-size:1.1rem">${a.icon}</div>
         <div style="font-size:.58rem;color:${a.cl};font-weight:700;margin:3px 0 1px;text-transform:uppercase;letter-spacing:.5px">${a.label}</div>
         <div style="font-size:1.1rem;font-weight:900;color:#e2e8f0;line-height:1.1">${a.val}</div>
-        <div style="font-size:.58rem;color:var(--mu);margin-top:3px">${a.sub}</div>
+        <div style="font-size:.58rem;color:var(--mu);margin-top:3px;display:flex;justify-content:space-between;align-items:center">
+          <span>${a.sub}</span><span style="color:${a.cl};font-weight:700">ดูรายการ →</span>
+        </div>
       </div>`).join('');
     document.getElementById('alertSummary').style.display='block';
   }
@@ -1885,6 +1901,18 @@ function showQtyTab(id,btn){
   requestAnimationFrame(()=>{
     try{ charts['cQty']&&charts['cQty'].resize(); charts['cGrpoCount']&&charts['cGrpoCount'].resize(); }catch(e){}
   });
+}
+// ปรับเส้น Target ในกราฟ "เวลาตรวจรับเฉลี่ย" สดๆ โดยไม่ต้องโหลด/render ใหม่ทั้งหมด
+function updateTargetLine(){
+  const v=parseFloat(document.getElementById('targetTime').value)||30;
+  const ch=charts['cTimeMonth'];
+  if(!ch)return;
+  const lineDs=ch.data.datasets.find(d=>d.type==='line');
+  if(lineDs){
+    lineDs.data=lineDs.data.map(()=>v);
+    lineDs.label=`Target ${v} นาที`;
+    ch.update();
+  }
 }
 function showStockTab(id){
   document.getElementById('pTop').style.display=id==='top'?'':'none';
