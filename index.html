@@ -315,12 +315,19 @@ tr:hover td{background:rgba(255,255,255,.025)}
 <!-- ===== ZONE: ภาพรวม (Overview KPIs) ===== -->
 <div class="zone active" id="zone-overview">
 
+  <!-- Data Quality Warning (โชว์เฉพาะตอนข้อมูลบางส่วนโหลดไม่ได้) -->
+  <div id="dataQualityWarning" style="display:none;align-items:center;gap:8px;background:rgba(248,112,108,.12);border:1px solid rgba(248,112,108,.35);border-radius:var(--r12);padding:10px 14px;margin-bottom:12px;font-size:.68rem;color:var(--r)">
+    <span style="font-size:1rem">⚠️</span>
+    <span id="dataQualityWarningText"></span>
+  </div>
+
   <!-- Executive Summary (สรุปสำหรับผู้บริหาร) -->
   <div class="exec-summary">
     <div class="exec-hd">📌 สรุปสำหรับผู้บริหาร</div>
     <div class="exec-list" id="execSummaryList">
       <div class="exec-item" style="color:var(--mu)">กำลังประมวลผล...</div>
     </div>
+    <div id="issueFreshness" style="font-size:.56rem;color:var(--mu);margin-top:8px"></div>
   </div>
 
   <!-- KPI Row (10 cards) -->
@@ -810,7 +817,7 @@ function goToZone(id){
 // ── โหลดข้อมูลผ่าน Apps Script proxy แทนการยิง gviz API ของ Google ตรงๆ ──
 // เพื่อไม่ให้ Sheet ID หลุดไปอยู่ใน client-side JS (ที่ใครก็ตามเปิด View Source ดูได้)
 // proxy เก็บ Sheet ID ไว้ฝั่ง server เท่านั้น และมี whitelist จำกัดว่าขอชีตอื่นไม่ได้
-const PROXY_URL='https://script.google.com/macros/s/AKfycbw8n1fLwYRb1_GCZiVXbg7ebQhgxXLWj_fGStuxGUtpozC66pTvF3DQrUL0MDMpbhAE/exec';
+const PROXY_URL='https://script.google.com/macros/s/AKfycbzAQIy9f9n7U7fEu0mFnOxmYWR_wBd9Q2Ze_SNnpx0hH9Mp1Dk8_yiirD1eJcv0g-0N/exec';
 const GRPO_GID='517994942';
 const ISSUE_GID='953971860'; // "จ่ายออก" — ต้องอ้างด้วย gid เพราะชื่อแท็บมี unicode เพี้ยน
 
@@ -912,6 +919,28 @@ const TIP={backgroundColor:'#141720',borderColor:'#1e2235',borderWidth:1,titleCo
 let charts={};
 let _dbg={};
 let _cacheGrpo=null,_cacheStockArr=null,_cacheIssueArr=null;
+let _issueDataFailed=false,_issueErrorMsg='';
+let _issueSummaryUpdatedAt=null;
+function updateIssueFreshnessNote(){
+  const el=document.getElementById('issueFreshness');
+  if(!el)return;
+  if(!_issueSummaryUpdatedAt){el.textContent='';return;}
+  const d=new Date(_issueSummaryUpdatedAt);
+  const mins=Math.round((Date.now()-d.getTime())/60000);
+  const timeStr=`${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')} น.`;
+  el.textContent=`📤 ข้อมูลจำหน่ายออกอัพเดทล่าสุด ${timeStr} (${mins<1?'เมื่อสักครู่':mins+' นาทีที่แล้ว'})`;
+}
+function updateDataQualityBanner(){
+  const el=document.getElementById('dataQualityWarning');
+  const txt=document.getElementById('dataQualityWarningText');
+  if(!el||!txt)return;
+  if(_issueDataFailed){
+    el.style.display='flex';
+    txt.textContent=`ข้อมูล "จำหน่ายออก" โหลดไม่ได้ (${_issueErrorMsg}) — ตัวเลข Dead Stock, ABC Analysis, Inventory Turnover, DIO ด้านล่างอาจไม่ถูกต้องในขณะนี้ ลองกด Refresh อีกครั้ง`;
+  }else{
+    el.style.display='none';
+  }
+}
 
 /* ── JSONP loader (ผ่าน Apps Script proxy) ── */
 // แต่ละ request ใช้ callback name ของตัวเอง (ไม่ใช้ global callback ตัวเดียวร่วมกันแบบเดิม)
@@ -1181,14 +1210,21 @@ async function loadData(){
     });
 
     // 2b. "จ่ายออก" — โหลดไม่ได้ก็ fallback เป็นค่าว่าง ไม่ทำให้ dashboard พังทั้งหมด
+    // แต่ต้องเตือนผู้ใช้ให้เห็นชัดๆ ด้วย ไม่ใช่แค่ console.warn เงียบๆ — เพราะถ้าไม่เตือน
+    // ผู้บริหารจะเห็น Dead Stock/ABC/Turnover ผิดเพี้ยนทั้งหมดโดยไม่รู้ว่าเป็นปัญหาโหลดข้อมูล
     let issueArr;
     if(issueResult.status==='rejected'||issueResult.value.status==='error'){
       const msg=issueResult.status==='rejected'?issueResult.reason.message:issueResult.value.errors?.[0]?.message;
       console.warn('จ่ายออก main sheet failed:',msg);
       issueArr=MO_LABELS.map(lb=>({moLabel:lb,rows:[],totalQty:0,totalThb:0}));
+      _issueDataFailed=true;_issueErrorMsg=msg||'ไม่ทราบสาเหตุ';
     }else{
       issueArr=processIssueAll(issueResult.value.table);
+      _issueDataFailed=false;_issueErrorMsg='';
+      _issueSummaryUpdatedAt=issueResult.value.updatedAt||null;
     }
+    updateDataQualityBanner();
+    updateIssueFreshnessNote();
     _dbg.issueInfo=issueArr.map(m=>({month:m.moLabel,rows:m.rows.length,totalQty:m.totalQty,totalThb:Math.round(m.totalThb),dbg:m._debug}));
 
     setProgress(98,'กำลังแสดงผล...');
