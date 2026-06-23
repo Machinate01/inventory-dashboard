@@ -1769,6 +1769,14 @@ function render(grpo,stockArr,issueArr){
       const deadPct=stockValueTotal>0?(deadStockVal/stockValueTotal*100):0;
       const items=[];
       items.push(`<div class="exec-item">🏦 <span>สต็อกคงเหลือรวม <b style="color:var(--g)">${mayStock.failed?'N/A':fmt(Math.round(stockValueTotal))+'฿'}</b> ${mayStock.failed?'(โหลดข้อมูลเดือนล่าสุดไม่ได้)':'ณ '+(mayStock.moLabel||'เดือนล่าสุด')}</span></div>`);
+      if(!_issueDataFailed){
+        const totalRecv=moArr.reduce((s,m)=>s+m.qty,0);
+        const totalIssued=issuedTotalByMo.reduce((s,v)=>s+v,0);
+        const netFlowTotal=totalRecv-totalIssued;
+        const flowDir=netFlowTotal>=0?'เพิ่มขึ้น':'ลดลง';
+        const flowCl=netFlowTotal>=0?'var(--g)':'var(--r)';
+        items.push(`<div class="exec-item">📉 <span>สต็อกสุทธิ<b style="color:${flowCl}">${flowDir} ${fmt(Math.abs(netFlowTotal))} หน่วย</b> ตลอด ${MO_LABELS.length} เดือน (รับเข้ารวม ${fmt(totalRecv)} vs จ่ายออกรวม ${fmt(totalIssued)}) — ${netFlowTotal<0?'จ่ายออกเร็วกว่ารับเข้าต่อเนื่อง ควรพิจารณาเร่งสั่งซื้อเพิ่มก่อนสต็อกขาด':'สต็อกสะสมเพิ่มขึ้นต่อเนื่อง ควรระวัง dead stock ในอนาคต'}</span></div>`);
+      }
       if(!mayStock.failed){
         items.push(`<div class="exec-item">⚠️ เสี่ยงสูญมูลค่า <b style="color:var(--r)">${fmt(Math.round(nearExpValueTotal))}฿</b> จากสินค้าใกล้หมดอายุ ≤3 เดือน (<b>${mayNearSku}</b> SKU) — ควรเร่งระบายหรือคืนผู้จัดจำหน่าย</div>`);
       }
