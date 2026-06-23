@@ -282,6 +282,10 @@ tr:hover td{background:rgba(255,255,255,.025)}
         <span style="font-size:.52rem;color:var(--mu)">฿</span>
       </div>
     </div>
+    <div id="yearToggle" style="display:flex;gap:4px;margin-right:4px">
+      <button id="btnYear2025" class="btn" onclick="setYear(2025)" style="padding:5px 10px">2025</button>
+      <button id="btnYear2026" class="btn" onclick="setYear(2026)" style="padding:5px 10px">2026</button>
+    </div>
     <button class="btn" onclick="window.print()" style="background:rgba(86,217,160,.1);color:var(--g);border-color:rgba(86,217,160,.25)">🖨️ Print</button>
     <button id="btnDbg" class="btn btn-dbg" onclick="toggleDebug()" style="display:none">🔍 Debug</button>
     <button id="btnRef" class="btn btn-ref" onclick="loadData()">🔄 Refresh</button>
@@ -334,14 +338,14 @@ tr:hover td{background:rgba(255,255,255,.025)}
   <div class="kpi-row" style="margin-bottom:12px">
     <div class="kpi money"><div class="ki">🏦</div><div class="kl">มูลค่าสต็อกคงเหลือ</div><div class="kv sm" id="k9">–</div><div class="kn">ประเมินจากราคารับเข้าเฉลี่ย</div></div>
     <div class="kpi rd"><div class="ki">💸</div><div class="kl">มูลค่าเสี่ยงใกล้หมดอายุ</div><div class="kv sm" id="k10">–</div><div class="kn">≤3 เดือน — ควรเร่งระบาย</div></div>
-    <div class="kpi bl"><div class="ki">💰</div><div class="kl">มูลค่ารับเข้า 6 เดือน</div><div class="kv sm" id="k1">–</div><div class="kn">ม.ค.–มิ.ย. 2026 (฿ equiv)</div></div>
-    <div class="kpi gr"><div class="ki">📥</div><div class="kl">จำนวนรับเข้า 6 เดือน</div><div class="kv sm" id="k2">–</div><div class="kn" id="k2n">รายการทั้งหมด</div></div>
+    <div class="kpi bl"><div class="ki">💰</div><div class="kl">มูลค่ารับเข้า <span id="lblM1">6</span> เดือน</div><div class="kv sm" id="k1">–</div><div class="kn">ม.ค.–มิ.ย. 2026 (฿ equiv)</div></div>
+    <div class="kpi gr"><div class="ki">📥</div><div class="kl">จำนวนรับเข้า <span id="lblM2">6</span> เดือน</div><div class="kv sm" id="k2">–</div><div class="kn" id="k2n">รายการทั้งหมด</div></div>
     <div class="kpi yl"><div class="ki">📦</div><div class="kl">Stock คงเหลือ มิ.ย.</div><div class="kv sm" id="k3">–</div><div class="kn">หน่วยรวมทุก SKU (JUN-2026)</div></div>
     <div class="kpi rd"><div class="ki">⚠️</div><div class="kl">ใกล้หมดอายุ ≤3 เดือน</div><div class="kv" id="k4">–</div><div class="kn">SKU จาก Stock มิ.ย.</div></div>
     <div class="kpi pu"><div class="ki">🔢</div><div class="kl">SKU ในคลัง มิ.ย.</div><div class="kv" id="k5">–</div><div class="kn">รหัสสินค้าทั้งหมด</div></div>
     <div class="kpi or"><div class="ki">💤</div><div class="kl">Dead Stock</div><div class="kv" id="k6">–</div><div class="kn" id="k6n">SKU ไม่มีการเบิกจ่าย</div></div>
     <div class="kpi gr"><div class="ki">💊</div><div class="kl">จ่ายออก มิ.ย.</div><div class="kv" id="k7">–</div><div class="kn">หน่วย (เดือนล่าสุด)</div></div>
-    <div class="kpi bl"><div class="ki">🔄</div><div class="kl">Inventory Turnover</div><div class="kv sm" id="k8">–</div><div class="kn">รอบ/6 เดือน (จ่าย÷avg stock)</div></div>
+    <div class="kpi bl"><div class="ki">🔄</div><div class="kl">Inventory Turnover</div><div class="kv sm" id="k8">–</div><div class="kn">รอบ/<span id="lblM3">6</span> เดือน (จ่าย÷avg stock)</div></div>
     <div class="kpi pu"><div class="ki">📅</div><div class="kl">DIO</div><div class="kv sm" id="k11">–</div><div class="kn">วัน — สต็อกพอใช้กี่วัน (เฉลี่ย)</div></div>
   </div>
 
@@ -424,7 +428,7 @@ tr:hover td{background:rgba(255,255,255,.025)}
     </div>
     <div class="card">
       <div class="ct">Top 8 ผู้จัดจำหน่าย</div>
-      <div class="cs">มูลค่าเทียบเท่าบาทรวม 6 เดือน</div>
+      <div class="cs">มูลค่าเทียบเท่าบาทรวม <span id="lblM4">6</span> เดือน</div>
       <div class="ch"><canvas id="cSupp"></canvas></div>
     </div>
   </div>
@@ -449,7 +453,7 @@ tr:hover td{background:rgba(255,255,255,.025)}
       <div class="cs">Top 10 SKU ณ มิ.ย. เรียงตามจำนวน</div>
       <div class="tabs">
         <button class="tab on" onclick="showStockTab('top')">📦 Top SKU</button>
-        <button class="tab" onclick="showStockTab('trend')">📈 Trend 6 เดือน</button>
+        <button class="tab" onclick="showStockTab('trend')">📈 Trend <span id="lblM5">6</span> เดือน</button>
         <button class="tab" onclick="showStockTab('vendor')">🏢 By Vendor</button>
       </div>
       <div id="pTop" class="tw">
@@ -817,7 +821,7 @@ function goToZone(id){
 // ── โหลดข้อมูลผ่าน Apps Script proxy แทนการยิง gviz API ของ Google ตรงๆ ──
 // เพื่อไม่ให้ Sheet ID หลุดไปอยู่ใน client-side JS (ที่ใครก็ตามเปิด View Source ดูได้)
 // proxy เก็บ Sheet ID ไว้ฝั่ง server เท่านั้น และมี whitelist จำกัดว่าขอชีตอื่นไม่ได้
-const PROXY_URL='https://script.google.com/macros/s/AKfycbzAQIy9f9n7U7fEu0mFnOxmYWR_wBd9Q2Ze_SNnpx0hH9Mp1Dk8_yiirD1eJcv0g-0N/exec';
+const PROXY_URL='https://script.google.com/macros/s/AKfycbwZ5lGW56_eg-C8w58qp4nv34tqaKwC0H6Szu3JvTEHI4vjsLj6EiFLE1jkeqfqkGE/exec';
 const GRPO_GID='517994942';
 const ISSUE_GID='953971860'; // "จ่ายออก" — ต้องอ้างด้วย gid เพราะชื่อแท็บมี unicode เพี้ยน
 
@@ -826,9 +830,15 @@ const ISSUE_GID='953971860'; // "จ่ายออก" — ต้องอ้�
    CFG_END_MONTH: 0=ม.ค. 1=ก.พ. 2=มี.ค. 3=เม.ย. 4=พ.ค. 5=มิ.ย.
                   6=ก.ค. 7=ส.ค. 8=ก.ย. 9=ต.ค. 10=พ.ย. 11=ธ.ค.
    ═══════════════════════════════════════════════════════════ */
-const CFG_YEAR=2026;
-const CFG_END_MONTH=5;   // มิ.ย.
-const CFG_MONTHS=6;      // จำนวนเดือนที่แสดง (ย้อนหลังจาก CFG_END_MONTH)
+const SELECTED_YEAR=new URLSearchParams(location.search).get('year')==='2025'?2025:2026;
+function setYear(y){
+  const p=new URLSearchParams(location.search);
+  if(y===2026)p.delete('year');else p.set('year',String(y));
+  location.search=p.toString();
+}
+const CFG_YEAR=SELECTED_YEAR;
+const CFG_END_MONTH=SELECTED_YEAR===2025?11:5;   // 2025=ธ.ค. (เต็มปี) / 2026=มิ.ย. (ล่าสุด)
+const CFG_MONTHS=SELECTED_YEAR===2025?12:6;      // จำนวนเดือนที่แสดง (ย้อนหลังจาก CFG_END_MONTH)
 
 const MONTH_EN=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
 const MONTH_TH=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
@@ -877,6 +887,16 @@ function applyDynamicLabels(){
   });
 }
 applyDynamicLabels();
+(function(){
+  const active=document.getElementById(SELECTED_YEAR===2025?'btnYear2025':'btnYear2026');
+  const inactive=document.getElementById(SELECTED_YEAR===2025?'btnYear2026':'btnYear2025');
+  if(active){active.style.background='rgba(86,217,160,.18)';active.style.color='var(--g)';active.style.borderColor='rgba(86,217,160,.4)';}
+  if(inactive){inactive.style.opacity='.55';}
+  ['lblM1','lblM2','lblM3','lblM4','lblM5'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el)el.textContent=CFG_MONTHS;
+  });
+})();
 let USD=35,EUR=38;
 // โหมด admin: เพิ่ม ?debug=1 ใน URL เพื่อเปิดปุ่ม Debug และแก้อัตรา USD/EUR ได้
 // ค่าเริ่มต้น (สำหรับนำเสนอผู้บริหาร) จะซ่อนสองอย่างนี้ไว้ ป้องกันกดเปลี่ยนโดยไม่ตั้งใจ
@@ -958,7 +978,7 @@ function loadJsonp(sheetName,gid){
     const p=gid?`gid=${encodeURIComponent(gid)}`:`sheet=${encodeURIComponent(sheetName)}`;
     s.src=`${PROXY_URL}?${p}&callback=${cbName}&t=${Date.now()}`;
     s.onerror=()=>{delete window[cbName];s.remove();reject(new Error(`โหลด ${sheetName||gid||'unknown'} ไม่ได้`));};
-    setTimeout(()=>{if(window[cbName]){delete window[cbName];s.remove();reject(new Error(`Timeout: ${sheetName||gid}`));}},15000);
+    setTimeout(()=>{if(window[cbName]){delete window[cbName];s.remove();reject(new Error(`Timeout: ${sheetName||gid}`));}},40000);
     document.head.appendChild(s);
   });
 }
@@ -1781,7 +1801,7 @@ function render(grpo,stockArr,issueArr){
         items.push(`<div class="exec-item">⚠️ เสี่ยงสูญมูลค่า <b style="color:var(--r)">${fmt(Math.round(nearExpValueTotal))}฿</b> จากสินค้าใกล้หมดอายุ ≤3 เดือน (<b>${mayNearSku}</b> SKU) — ควรเร่งระบายหรือคืนผู้จัดจำหน่าย</div>`);
       }
       items.push(`<div class="exec-item">💤 Dead Stock มูลค่า <b style="color:var(--pu)">${fmt(Math.round(deadStockVal))}฿</b> (<b>${deadPct.toFixed(1)}%</b> ของมูลค่าสต็อกทั้งหมด, ${deadStock.length} SKU) — ไม่มีการเบิกจ่ายในช่วงที่ผ่านมา</div>`);
-      items.push(`<div class="exec-item">🔄 Inventory Turnover <b style="color:var(--ac)">${turnover!=='–'?turnover+'x':'–'}</b> ต่อ 6 เดือน — ${turnover!=='–'&&parseFloat(turnover)<1?'ค่อนข้างต่ำ ควรพิจารณาลดสต็อกหรือเร่งจำหน่าย':'อยู่ในเกณฑ์ปกติ'}</div>`);
+      items.push(`<div class="exec-item">🔄 Inventory Turnover <b style="color:var(--ac)">${turnover!=='–'?turnover+'x':'–'}</b> ต่อ ${CFG_MONTHS} เดือน — ${turnover!=='–'&&parseFloat(turnover)<1?'ค่อนข้างต่ำ ควรพิจารณาลดสต็อกหรือเร่งจำหน่าย':'อยู่ในเกณฑ์ปกติ'}</div>`);
       execEl.innerHTML=items.join('');
     }
   }
