@@ -807,8 +807,12 @@ function goToZone(id){
 </script>
 
 <script>
-const SHEET_ID='1NlNRWBiGudYeNwiF8bECrnMiotvQZUh17j0n-GBBdho';
+// ── โหลดข้อมูลผ่าน Apps Script proxy แทนการยิง gviz API ของ Google ตรงๆ ──
+// เพื่อไม่ให้ Sheet ID หลุดไปอยู่ใน client-side JS (ที่ใครก็ตามเปิด View Source ดูได้)
+// proxy เก็บ Sheet ID ไว้ฝั่ง server เท่านั้น และมี whitelist จำกัดว่าขอชีตอื่นไม่ได้
+const PROXY_URL='https://script.google.com/macros/s/AKfycbxE7XMq-DUowAEwvUq62bXoLsuFam6S5dyzvUysyJzZoV14nvPtW_gG7vNbAXJeQ_5X/exec';
 const GRPO_GID='517994942';
+const ISSUE_GID='953971860'; // "จ่ายออก" — ต้องอ้างด้วย gid เพราะชื่อแท็บมี unicode เพี้ยน
 
 /* ═══════════════════════════════════════════════════════════
    ตั้งค่าปี/เดือน — ปีถัดไปแก้แค่ 2 ค่านี้ ไม่ต้องแก้ที่อื่นเลย
@@ -909,20 +913,23 @@ let charts={};
 let _dbg={};
 let _cacheGrpo=null,_cacheStockArr=null,_cacheIssueArr=null;
 
-/* ── JSONP loader ── */
-if(!window.google)window.google={};
-if(!window.google.visualization)window.google.visualization={};
-window.google.visualization.Query={setResponse:function(r){if(window._gvizCb){window._gvizCb(r);window._gvizCb=null;}}};
-
+/* ── JSONP loader (ผ่าน Apps Script proxy) ── */
+// แต่ละ request ใช้ callback name ของตัวเอง (ไม่ใช้ global callback ตัวเดียวร่วมกันแบบเดิม)
+// ทำให้ยิงพร้อมกันหลาย sheet ได้จริง (Promise.all) ไม่ต้องรอทีละ sheet
+let _cbSeq=0;
 function loadJsonp(sheetName,gid){
   return new Promise((resolve,reject)=>{
-    window._gvizCb=resolve;
-    const old=document.getElementById('__gviz__');if(old)old.remove();
-    const s=document.createElement('script');s.id='__gviz__';
-    const p=gid?`gid=${gid}`:`sheet=${encodeURIComponent(sheetName)}`;
-    s.src=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&${p}&t=${Date.now()}`;
-    s.onerror=()=>{window._gvizCb=null;reject(new Error(`โหลด ${sheetName||'GRPO'}ไม่ได้`));};
-    setTimeout(()=>{if(window._gvizCb){window._gvizCb=null;reject(new Error(`Timeout: ${sheetName||'GRPO'}`));}},12000);
+    const cbName='_proxyCb'+(++_cbSeq);
+    window[cbName]=function(r){
+      delete window[cbName];
+      const el=document.getElementById(cbName);if(el)el.remove();
+      resolve(r);
+    };
+    const s=document.createElement('script');s.id=cbName;
+    const p=gid?`gid=${encodeURIComponent(gid)}`:`sheet=${encodeURIComponent(sheetName)}`;
+    s.src=`${PROXY_URL}?${p}&callback=${cbName}&t=${Date.now()}`;
+    s.onerror=()=>{delete window[cbName];s.remove();reject(new Error(`โหลด ${sheetName||gid||'unknown'} ไม่ได้`));};
+    setTimeout(()=>{if(window[cbName]){delete window[cbName];s.remove();reject(new Error(`Timeout: ${sheetName||gid}`));}},15000);
     document.head.appendChild(s);
   });
 }
@@ -1149,37 +1156,38 @@ async function loadData(){
   _dbg={version:"v3.1-jun15-colscan"};
 
   try{
-    // 1. GRPO
-    setProgress(5,'กำลังโหลด GRPO. (รับเข้า)...');
-    const grpoResp=await loadJsonp(null,GRPO_GID);
+    // โหลดทุก sheet พร้อมกัน (GRPO + stock รายเดือนทุกเดือน + จ่ายออก) — เร็วกว่าทีละ sheet มาก
+    setProgress(10,'กำลังโหลดข้อมูลทั้งหมดพร้อมกัน...');
+    const grpoPromise=loadJsonp(null,GRPO_GID);
+    const stockPromises=STOCK_SHEETS.map(name=>loadJsonp(name,null));
+    const issuePromise=loadJsonp(null,ISSUE_GID);
+    const[grpoResult,issueResult,...stockResults]=await Promise.allSettled([grpoPromise,issuePromise,...stockPromises]);
+    setProgress(70,'ประมวลผล...');
+
+    // 1. GRPO — โหลดไม่ได้ถือเป็น error หลัก (ข้อมูลรับเข้าเป็นแกนหลักของ dashboard)
+    if(grpoResult.status==='rejected')throw grpoResult.reason;
+    const grpoResp=grpoResult.value;
     if(grpoResp.status==='error')throw new Error(grpoResp.errors?.[0]?.message||'GRPO error');
     const grpoData=processGrpo(grpoResp.table);
-    setProgress(20,'GRPO ✓ — กำลังโหลด Stock รายเดือน...');
-    
-    // 2. Monthly stock
-    const stockArr=[];
-    for(let i=0;i<STOCK_SHEETS.length;i++){
-      setProgress(20+(i+1)*15,`กำลังโหลด Stock ${MO_LABELS[i]}...`);
-      try{
-        const r=await loadJsonp(STOCK_SHEETS[i],null);
-        if(r.status==='error')throw new Error(r.errors?.[0]?.message);
-        stockArr.push(processStock(r.table,MO_LABELS[i]));
-      }catch(e){
-        console.warn(`Stock ${MO_LABELS[i]} failed:`,e.message);
-        stockArr.push({moLabel:MO_LABELS[i],totalQty:null,items:[],failed:true});
+
+    // 2. Monthly stock — แต่ละเดือนพังแยกกันได้ ไม่ทำให้ทั้งหมดพัง
+    const stockArr=stockResults.map((res,i)=>{
+      if(res.status==='rejected'||res.value.status==='error'){
+        const msg=res.status==='rejected'?res.reason.message:res.value.errors?.[0]?.message;
+        console.warn(`Stock ${MO_LABELS[i]} failed:`,msg);
+        return{moLabel:MO_LABELS[i],totalQty:null,items:[],failed:true};
       }
-    }
-    
-    // 2b. Load main "จ่ายออก" sheet (single sheet with M. column for month filter)
-    setProgress(70,'กำลังโหลด จ่ายออก (ทุกเดือน)...');
+      return processStock(res.value.table,MO_LABELS[i]);
+    });
+
+    // 2b. "จ่ายออก" — โหลดไม่ได้ก็ fallback เป็นค่าว่าง ไม่ทำให้ dashboard พังทั้งหมด
     let issueArr;
-    try{
-      const ir=await loadJsonp('จ่ายออก',null);
-      if(ir.status==='error')throw new Error(ir.errors?.[0]?.message);
-      issueArr=processIssueAll(ir.table);
-    }catch(e){
-      console.warn('จ่ายออก main sheet failed:',e.message);
+    if(issueResult.status==='rejected'||issueResult.value.status==='error'){
+      const msg=issueResult.status==='rejected'?issueResult.reason.message:issueResult.value.errors?.[0]?.message;
+      console.warn('จ่ายออก main sheet failed:',msg);
       issueArr=MO_LABELS.map(lb=>({moLabel:lb,rows:[],totalQty:0,totalThb:0}));
+    }else{
+      issueArr=processIssueAll(issueResult.value.table);
     }
     _dbg.issueInfo=issueArr.map(m=>({month:m.moLabel,rows:m.rows.length,totalQty:m.totalQty,totalThb:Math.round(m.totalThb),dbg:m._debug}));
 
