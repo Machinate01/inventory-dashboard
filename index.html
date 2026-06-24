@@ -978,7 +978,7 @@ function loadJsonp(sheetName,gid){
     const p=gid?`gid=${encodeURIComponent(gid)}`:`sheet=${encodeURIComponent(sheetName)}`;
     s.src=`${PROXY_URL}?${p}&callback=${cbName}&t=${Date.now()}`;
     s.onerror=()=>{delete window[cbName];s.remove();reject(new Error(`โหลด ${sheetName||gid||'unknown'} ไม่ได้`));};
-    setTimeout(()=>{if(window[cbName]){delete window[cbName];s.remove();reject(new Error(`Timeout: ${sheetName||gid}`));}},40000);
+    setTimeout(()=>{if(window[cbName]){delete window[cbName];s.remove();reject(new Error(`Timeout: ${sheetName||gid}`));}},60000);
     document.head.appendChild(s);
   });
 }
