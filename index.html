@@ -1157,15 +1157,17 @@ function processIssueAll(table){
   // Month name → index map (EN + TH + ลำดับเดือนที่ 1..N) — สร้างจาก MO_CONFIG ปัจจุบัน ไม่ผูกกับ Jan-Jun
   const MO_MAP={};
   MO_CONFIG.forEach((c,i)=>{
-    MO_MAP[MONTH_EN[c.mo]]=i;
-    MO_MAP[MONTH_TH[c.mo]]=i;
+    // ใช้ key ที่รวมปีด้วยเสมอ (เช่น "JAN-2026") ป้องกันเดือนชื่อเดียวกันจากปีอื่นเข้ามาปนกัน
+    // (ชีตจ่ายออกมีคอลัมน์ "M." แบบ "JAN-2026"/"JAN-2025" แยกปีชัดเจนอยู่แล้ว)
+    MO_MAP[`${MONTH_EN[c.mo]}-${c.yr}`]=i;
+    MO_MAP[`${MONTH_TH[c.mo]}-${c.yr}`]=i;
     MO_MAP[String(i+1)]=i;
   });
   const result=MO_LABELS.map(lb=>({moLabel:lb,rows:[],totalQty:0,totalThb:0}));
   let skipped=0, added=0;
   for(const row of(table.rows||[])){
     const moRaw=String(g(row,iMonth)||'').trim();
-    const moKey=moRaw.toUpperCase().substring(0,3);
+    const moKey=moRaw.toUpperCase();
     const moIdx=MO_MAP[moKey]??MO_MAP[moRaw];
     if(moIdx===undefined||moIdx===null){skipped++;continue;}
     const code=String(g(row,iCode)||'').trim();
