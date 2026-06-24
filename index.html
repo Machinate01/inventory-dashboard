@@ -1438,7 +1438,10 @@ function render(grpo,stockArr,issueArr){
     scales:{x:{ticks:tickCb(v=>fmt(v)),grid:{color:GRD}},y:{ticks:{color:'#7a8499',font:{size:8}},grid:{color:GRD}}}});
 
   // 8-10. Issued stacked bar (Top 10 items × 4 months)
-  const ISSUED_CLR=['rgba(108,143,248,.8)','rgba(86,217,160,.8)','rgba(248,201,108,.8)','rgba(248,112,108,.8)'];
+  // มีสีพอสำหรับสูงสุด 12 เดือน (มุมมองปี 2025) กันสีตกขอบ array แล้วไปชนกับสีเดือนก่อนหน้า
+  const ISSUED_CLR=['rgba(108,143,248,.8)','rgba(86,217,160,.8)','rgba(248,201,108,.8)','rgba(248,112,108,.8)',
+    'rgba(189,108,248,.8)','rgba(248,150,76,.8)','rgba(76,201,240,.8)','rgba(248,108,191,.8)',
+    'rgba(163,201,76,.8)','rgba(108,118,248,.8)','rgba(76,201,165,.8)','rgba(201,150,108,.8)'];
   mkChart('cIssuedStack','bar',{
     labels:top10IssuedItems.map(([c])=>c),
     datasets:ISSUED_MO_LB.map((lb,i)=>({
