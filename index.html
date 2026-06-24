@@ -1827,7 +1827,7 @@ function render(grpo,stockArr,issueArr){
     const PALS=['rgba(86,217,160,.85)','rgba(100,149,237,.85)','rgba(248,168,108,.85)','rgba(220,120,220,.8)','rgba(108,200,240,.8)','rgba(248,112,108,.75)','rgba(180,220,100,.8)','rgba(255,190,70,.8)','rgba(140,100,220,.8)','rgba(100,210,180,.8)','rgba(230,160,100,.8)','rgba(160,200,240,.8)'];
     mkChart('cVendorStock','bar',{
       labels:top12Supp.map(([v])=>lbl(v,20)),
-      datasets:[{label:'Stock มิ.ย.',data:top12Supp.map(([,q])=>q),backgroundColor:top12Supp.map((_,i)=>PALS[i%PALS.length]),borderRadius:3}]
+      datasets:[{label:`Stock ${LATEST_MO_LABEL}`,data:top12Supp.map(([,q])=>q),backgroundColor:top12Supp.map((_,i)=>PALS[i%PALS.length]),borderRadius:3}]
     },{indexAxis:'y',plugins:{legend:{display:false},tooltip:{...TIP,callbacks:{title:i=>top12Supp[i[0].dataIndex][0],label:c=>` ${fmt(c.raw)} หน่วย`}}},
       scales:{x:{ticks:{...tickCb(fmt),color:'#7a8499',font:{size:8}},grid:{color:GRD}},y:{ticks:{color:'#b0bec5',font:{size:8},autoSkip:false},grid:{display:false}}}});
   }
