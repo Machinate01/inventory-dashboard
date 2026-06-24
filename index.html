@@ -1861,9 +1861,12 @@ function render(grpo,stockArr,issueArr,compare){
         const arw=(p)=>p===null?'–':(p>=0?`▲ ${p.toFixed(1)}%`:`▼ ${Math.abs(p).toFixed(1)}%`);
         const cl=(p)=>p===null?'var(--mu)':(p>=0?'var(--g)':'var(--r)');
         const currIssuedThb=issuedValByMo.reduce((s,v)=>s+v,0);
-        const grpoPct=pct(totalThb,compare.grpoThb), issuePct=pct(currIssuedThb,compare.issueThb);
+        const grpoPct=pct(totalThb,compare.grpoThb);
+        // ถ้าข้อมูลจ่ายออกของช่วงปัจจุบันโหลดไม่ได้ (_issueDataFailed) ห้ามคิด % เทียบ
+        // เพราะ currIssuedThb จะเป็น 0 ปลอม ทำให้ขึ้น "▼100%" หลอกว่ายอดขายหายทั้งที่จริงคือโหลดพลาด
+        const issuePct=_issueDataFailed?null:pct(currIssuedThb,compare.issueThb);
         const stockPct=(!mayStock.failed&&compare.stockQty!==null)?pct(mayTotalQty,compare.stockQty):null;
-        items.push(`<div class="exec-item">📊 <span>เทียบช่วงเดียวกันปีก่อน (${compare.periodStr}): รับเข้า <b style="color:${cl(grpoPct)}">${arw(grpoPct)}</b> (${fmt(Math.round(totalThb))}฿ vs ${fmt(Math.round(compare.grpoThb))}฿) · จ่ายออก <b style="color:${cl(issuePct)}">${arw(issuePct)}</b> (${fmt(Math.round(currIssuedThb))}฿ vs ${fmt(Math.round(compare.issueThb))}฿)${stockPct!==null?` · Stock ${LATEST_MO_LABEL} <b style="color:${cl(stockPct)}">${arw(stockPct)}</b> (${fmt(mayTotalQty)} vs ${fmt(compare.stockQty)} หน่วย)`:''}</span></div>`);
+        items.push(`<div class="exec-item">📊 <span>เทียบช่วงเดียวกันปีก่อน (${compare.periodStr}): รับเข้า <b style="color:${cl(grpoPct)}">${arw(grpoPct)}</b> (${fmt(Math.round(totalThb))}฿ vs ${fmt(Math.round(compare.grpoThb))}฿) · จ่ายออก <b style="color:${cl(issuePct)}">${_issueDataFailed?'N/A (โหลดข้อมูลไม่ได้)':arw(issuePct)}</b>${_issueDataFailed?'':` (${fmt(Math.round(currIssuedThb))}฿ vs ${fmt(Math.round(compare.issueThb))}฿)`}${stockPct!==null?` · Stock ${LATEST_MO_LABEL} <b style="color:${cl(stockPct)}">${arw(stockPct)}</b> (${fmt(mayTotalQty)} vs ${fmt(compare.stockQty)} หน่วย)`:''}</span></div>`);
       }
       items.push(`<div class="exec-item">🏦 <span>สต็อกคงเหลือรวม <b style="color:var(--g)">${mayStock.failed?'N/A':fmt(Math.round(stockValueTotal))+'฿'}</b> ${mayStock.failed?'(โหลดข้อมูลเดือนล่าสุดไม่ได้)':'ณ '+(mayStock.moLabel||'เดือนล่าสุด')}</span></div>`);
       if(!_issueDataFailed){
