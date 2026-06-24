@@ -677,6 +677,7 @@ tr:hover td{background:rgba(255,255,255,.025)}
           <thead><tr>
             <th>#</th><th>ITEM / ชื่อสินค้า</th>
             <th class="num">มูลค่าจ่ายออก (฿)</th>
+            <th class="num">จำนวน (หน่วย)</th>
             <th class="num">สะสม%</th><th>กลุ่ม</th>
           </tr></thead>
           <tbody id="tABC"></tbody>
@@ -2188,10 +2189,11 @@ function renderABCTable(filter){
       <td class="rk">${n+1}</td>
       <td title="${x.desc}" style="max-width:220px"><div class="code">${x.code}</div><div class="nm" style="white-space:normal;word-break:break-word">${x.desc||'–'}</div></td>
       <td class="num" style="color:var(--y)">${x.val>0?fmt(x.val)+'฿':'–'}</td>
+      <td class="num">${x.qty>0?fmt(x.qty):'–'}</td>
       <td class="num" style="color:var(--mu)">${x.cumPct.toFixed(1)}%</td>
       <td><span class="eb" style="background:${ABC_BG[x.abc]};color:${ABC_CL[x.abc]};border:1px solid ${ABC_CL[x.abc]}">กลุ่ม ${x.abc}</span></td>
     </tr>`).join('')
-    :`<tr><td colspan="5" style="text-align:center;color:var(--mu);padding:14px">ไม่มีข้อมูล</td></tr>`;
+    :`<tr><td colspan="6" style="text-align:center;color:var(--mu);padding:14px">ไม่มีข้อมูล</td></tr>`;
 }
 function filterABC(g){
   ['all','A','B','C'].forEach(k=>{
