@@ -2332,7 +2332,7 @@ function downloadDeadStock(){
   const gMap=window._grpoPriceMap||{};
   const iMap=window._issuePriceMap||{};
   if(!data.length){alert('ไม่มีข้อมูล Dead Stock (โหลดข้อมูลก่อนแล้วลองใหม่)');return;}
-  const rows=[['#','Item Code','ชื่อสินค้า','Stock มิ.ย.','ราคา/หน่วย GRPO (฿)','มูลค่ารวม (฿)','คลัง','EXP (ใกล้สุด)','อายุเหลือ (ปี)','Supplier']];
+  const rows=[['#','Item Code','ชื่อสินค้า',`Stock ${LATEST_MO_LABEL}`,'ราคา/หน่วย GRPO (฿)','มูลค่ารวม (฿)','คลัง','EXP (ใกล้สุด)','อายุเหลือ (ปี)','Supplier']];
   const now=new Date();
   data.forEach((x,i)=>{
     const unitP=gMap[x.code]||0;
