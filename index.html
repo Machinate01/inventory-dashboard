@@ -532,7 +532,7 @@ tr:hover td{background:rgba(255,255,255,.025)}
   <div class="grid-2eq" style="min-height:380px">
     <div class="card">
       <div class="ct">Top 10 สินค้าจำหน่ายออก</div>
-      <div class="cs">Stack bar รวม ก.พ.–มิ.ย. 2026</div>
+      <div class="cs">Stack bar รวม <span id="lblIssuedStackPeriod">ก.พ.–มิ.ย. 2026</span></div>
       <div class="ch" style="min-height:320px"><canvas id="cIssuedStack"></canvas></div>
     </div>
     <div class="card">
@@ -540,16 +540,7 @@ tr:hover td{background:rgba(255,255,255,.025)}
       <div class="cs">ม.ค.–มิ.ย. 2026 — แต่ละช่อง: <span style="color:var(--tx)">จำนวน (หน่วย)</span> / <span style="color:var(--y)">มูลค่า (฿)</span></div>
       <div class="tw">
         <table>
-          <thead><tr>
-            <th>#</th><th>ITEM / ชื่อสินค้า</th>
-            <th class="num">ม.ค.<div style="font-size:.45rem;font-weight:400;color:var(--y)">มูลค่า</div></th>
-            <th class="num">ก.พ.<div style="font-size:.45rem;font-weight:400;color:var(--y)">มูลค่า</div></th>
-            <th class="num">มี.ค.<div style="font-size:.45rem;font-weight:400;color:var(--y)">มูลค่า</div></th>
-            <th class="num">เม.ย.<div style="font-size:.45rem;font-weight:400;color:var(--y)">มูลค่า</div></th>
-            <th class="num">พ.ค.<div style="font-size:.45rem;font-weight:400;color:var(--y)">มูลค่า</div></th>
-            <th class="num">มิ.ย.<div style="font-size:.45rem;font-weight:400;color:var(--y)">มูลค่า</div></th>
-            <th class="num" style="color:var(--g)">รวม<div style="font-size:.45rem;font-weight:400;color:var(--y)">มูลค่า</div></th>
-          </tr></thead>
+          <thead id="tIssuedDetailHead"></thead>
           <tbody id="tIssuedDetail"></tbody>
         </table>
       </div>
@@ -896,6 +887,8 @@ applyDynamicLabels();
     const el=document.getElementById(id);
     if(el)el.textContent=CFG_MONTHS;
   });
+  const lblStack=document.getElementById('lblIssuedStackPeriod');
+  if(lblStack)lblStack.textContent=PERIOD_STR;
 })();
 let USD=35,EUR=38;
 // โหมด admin: เพิ่ม ?debug=1 ใน URL เพื่อเปิดปุ่ม Debug และแก้อัตรา USD/EUR ได้
@@ -1551,7 +1544,13 @@ function render(grpo,stockArr,issueArr){
     <tbody>${trendRows}</tbody>
   </table>`;
 
-  // Issued detail table (per item × per month)
+  // Issued detail table (per item × per month) — head สร้างตาม MO_LABELS ปัจจุบันเสมอ
+  // (กันหัวตาราง hardcode ไม่ตรงกับจำนวนคอลัมน์ข้อมูลจริงตอนสลับ 6/12 เดือน)
+  document.getElementById('tIssuedDetailHead').innerHTML=`<tr>
+    <th>#</th><th>ITEM / ชื่อสินค้า</th>
+    ${MO_LABELS.map(lb=>`<th class="num">${lb}<div style="font-size:.45rem;font-weight:400;color:var(--y)">มูลค่า</div></th>`).join('')}
+    <th class="num" style="color:var(--g)">รวม<div style="font-size:.45rem;font-weight:400;color:var(--y)">มูลค่า</div></th>
+  </tr>`;
   document.getElementById('tIssuedDetail').innerHTML=top10IssuedItems.length
     ?top10IssuedItems.map(([code,v],n)=>
       `<tr><td class="rk">${n+1}</td>
@@ -1564,7 +1563,7 @@ function render(grpo,stockArr,issueArr){
         <div style="color:var(--g);font-weight:700">${v.total.toLocaleString()}</div>
         <div style="font-size:.55rem;color:var(--y);margin-top:1px">${v.totalVal>0?fmt(v.totalVal)+'฿':'–'}</div>
       </td></tr>`).join('')
-    :`<tr><td colspan="8" style="text-align:center;color:var(--mu);padding:14px">ไม่สามารถประมาณการได้</td></tr>`;
+    :`<tr><td colspan="${2+CFG_MONTHS+1}" style="text-align:center;color:var(--mu);padding:14px">ไม่สามารถประมาณการได้</td></tr>`;
 
   // Expiry
   window._nearExpItems=nearItems;
