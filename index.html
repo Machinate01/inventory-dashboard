@@ -1267,10 +1267,15 @@ async function loadData(){
 /* ── Render ── */
 function render(grpo,stockArr,issueArr){
   const now=new Date();
-  
+
+  // grpo คือ log รวมทุกปี (server ไม่กรองให้ เพราะ gid เดียวกันใช้ทั้ง 2025/2026) — ต้องกรอง
+  // เหลือแค่แถวในช่วงที่เลือกอยู่ก่อนเอาไปคิดค่าไหนๆ ที่ caption บอกว่าเป็นของ "ช่วงที่เลือก"
+  // (ยกเว้น grpoPriceMap ด้านล่างที่ตั้งใจใช้ราคาเฉลี่ยถ่วงน้ำหนักจากข้อมูลทั้งหมดเพื่อความแม่นยำ)
+  const grpoP=grpo.filter(r=>findMonthIdx(r.date)>=0);
+
   // ── KPIs ──
-  const totalThb=grpo.reduce((s,r)=>s+r.thb,0);
-  const totalQty=grpo.reduce((s,r)=>s+r.qty,0);
+  const totalThb=grpoP.reduce((s,r)=>s+r.thb,0);
+  const totalQty=grpoP.reduce((s,r)=>s+r.qty,0);
   // เลือก stock เดือนล่าสุดที่โหลดสำเร็จ (ไม่ใช่แค่เดือนสุดท้ายตรงๆ) — กัน "0 เพราะโหลด error" ปนกับ "0 จริง"
   let mayStock=stockArr[stockArr.length-1], mayUsedFallback=false;
   if(!mayStock||mayStock.failed){mayStock=stockArr[stockArr.length-2];mayUsedFallback=true;}
@@ -1312,7 +1317,7 @@ function render(grpo,stockArr,issueArr){
 
   document.getElementById('k1').textContent=fmt(totalThb)+'฿';
   document.getElementById('k2').textContent=fmt(totalQty);
-  document.getElementById('k2n').textContent=`${grpo.length} รายการรับเข้า`;
+  document.getElementById('k2n').textContent=`${grpoP.length} รายการรับเข้า`;
   document.getElementById('k3').textContent=mayStock.failed?'N/A':fmt(mayTotalQty);
   document.getElementById('k4').textContent=mayNearSku;
   document.getElementById('k5').textContent=maySku;
@@ -1340,15 +1345,15 @@ function render(grpo,stockArr,issueArr){
   
   // ── Supplier aggregate — skip rows with no supplier name ──
   const suppMap=new Map();
-  grpo.forEach(r=>{
+  grpoP.forEach(r=>{
     if(!r.supp||r.supp==='–'||r.supp==='-')return;
     suppMap.set(r.supp,(suppMap.get(r.supp)||0)+r.thb);
   });
   const top8=[...suppMap.entries()].sort((a,b)=>b[1]-a[1]).slice(0,8);
-  
+
   // ── Item aggregate (GR) — skip rows with no item code ──
   const itemMap=new Map();
-  grpo.forEach(r=>{
+  grpoP.forEach(r=>{
     if(!r.code||r.code==='–'||r.code==='-')return;
     if(!itemMap.has(r.code))itemMap.set(r.code,{desc:r.desc,thb:0,qty:0});
     const it=itemMap.get(r.code);it.thb+=r.thb;it.qty+=r.qty;
@@ -1602,19 +1607,19 @@ function render(grpo,stockArr,issueArr){
   const avgTimeByMo=timeByMoArr.map(t=>t.cnt>0?(t.tot/t.cnt).toFixed(1):0);
 
   const suppTimeMap=new Map();
-  grpo.forEach(r=>{
+  grpoP.forEach(r=>{
     if(!r.supp||r.supp==='–'||r.timeInsp<=0)return;
     if(!suppTimeMap.has(r.supp))suppTimeMap.set(r.supp,{tot:0,cnt:0});
     const s=suppTimeMap.get(r.supp);s.tot+=r.timeInsp;s.cnt++;
   });
   const topSuppTime=[...suppTimeMap.entries()].filter(([,v])=>v.cnt>0).map(([k,v])=>[k,v.tot/v.cnt]).sort((a,b)=>b[1]-a[1]).slice(0,8);
 
-  const allTI=grpo.filter(r=>r.timeInsp>0).map(r=>r.timeInsp);
+  const allTI=grpoP.filter(r=>r.timeInsp>0).map(r=>r.timeInsp);
   const avgTI=allTI.length?(allTI.reduce((s,v)=>s+v,0)/allTI.length).toFixed(1):0;
   const maxTI=allTI.length?parseFloat(Math.max(...allTI).toFixed(1)):0;
   const _sorted=[...allTI].sort((a,b)=>a-b);
   const medTI=_sorted.length?(_sorted.length%2===0?(_sorted[_sorted.length/2-1]+_sorted[_sorted.length/2])/2:_sorted[Math.floor(_sorted.length/2)]).toFixed(1):0;
-  const allTS=grpo.filter(r=>r.timeSys>0).map(r=>r.timeSys);
+  const allTS=grpoP.filter(r=>r.timeSys>0).map(r=>r.timeSys);
   const avgTS=allTS.length?(allTS.reduce((s,v)=>s+v,0)/allTS.length).toFixed(1):0;
 
   document.getElementById('perfKpiWrap').innerHTML=[
@@ -1641,7 +1646,7 @@ function render(grpo,stockArr,issueArr){
   // zone-ops: Cold Chain & Import Type
   // ═══════════════════════════════════════════
   const tempMap=new Map();const importMap=new Map();const placeMap=new Map();
-  grpo.forEach(r=>{
+  grpoP.forEach(r=>{
     const tc=(r.tempCtrl||'').trim()||'ไม่ระบุ';
     if(tc!=='–'&&tc!=='-')tempMap.set(tc,(tempMap.get(tc)||0)+1);
     const imp=(r.importType||'').trim()||'ไม่ระบุ';
