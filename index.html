@@ -917,7 +917,13 @@ function updateRates(){
     const rate=r.cur==='USD'?USD:r.cur==='EUR'?EUR:1;
     r.thb=r.origVal*rate;
   });
-  render(_cacheGrpo,_cacheStockArr,_cacheIssueArr);
+  // อัตราใหม่กระทบ thb ของช่วงเทียบ YoY ด้วย (re-sum จาก _cacheGrpo ที่อัพเดท rate แล้ว)
+  if(_cacheCompare&&COMPARE_MO_CONFIG){
+    _cacheCompare.grpoThb=_cacheGrpo
+      .filter(r=>r.date&&COMPARE_MO_CONFIG.some(c=>c.yr===r.date.getFullYear()&&c.mo===r.date.getMonth()))
+      .reduce((s,r)=>s+r.thb,0);
+  }
+  render(_cacheGrpo,_cacheStockArr,_cacheIssueArr,_cacheCompare);
   showToast('💱 คำนวณอัตราแลกเปลี่ยนใหม่แล้ว (ไม่ได้โหลดข้อมูลใหม่)');
 }
 function updateRateNote(){
@@ -939,7 +945,7 @@ const GRD='#191c2a';
 const TIP={backgroundColor:'#141720',borderColor:'#1e2235',borderWidth:1,titleColor:'#e2e8f0',bodyColor:'#7a8499',padding:9,titleFont:{size:10},bodyFont:{size:10}};
 let charts={};
 let _dbg={};
-let _cacheGrpo=null,_cacheStockArr=null,_cacheIssueArr=null;
+let _cacheGrpo=null,_cacheStockArr=null,_cacheIssueArr=null,_cacheCompare=null;
 let _issueDataFailed=false,_issueErrorMsg='';
 let _issueSummaryUpdatedAt=null;
 function updateIssueFreshnessNote(){
@@ -1296,7 +1302,7 @@ async function loadData(){
     }
 
     setProgress(98,'กำลังแสดงผล...');
-    _cacheGrpo=grpoData;_cacheStockArr=stockArr;_cacheIssueArr=issueArr;
+    _cacheGrpo=grpoData;_cacheStockArr=stockArr;_cacheIssueArr=issueArr;_cacheCompare=compare;
     render(grpoData,stockArr,issueArr,compare);
     setProgress(100);
     if(silent)showToast('✅ อัพเดทข้อมูลล่าสุดแล้ว');
