@@ -851,6 +851,13 @@ const LATEST_MO_FULL=MO_FULL[MO_FULL.length-1];
 const LATEST_MO_LABEL=MO_LABELS[MO_LABELS.length-1];
 // ช่วงสำหรับ Dead Stock (5 เดือนหลังสุด เว้นเดือนแรก) เช่น "ก.พ.–มิ.ย. 2026"
 const DEAD_PERIOD_STR=MO_LABELS.length>1?`${MO_LABELS[1]}–${MO_LABELS[MO_LABELS.length-1]} ${MO_CONFIG[MO_CONFIG.length-1].yr}`:PERIOD_STR;
+
+// ── เปรียบเทียบ YoY ช่วงเดียวกันปีก่อน — เฉพาะมุมมอง 2026 (6 เดือนล่าสุด) เพราะ
+// ปี 2025 ครบทั้งปีแล้ว ไม่มีปีก่อนหน้าให้เทียบแบบ fair (ไม่มีข้อมูลปี 2024 ในชีต) ──
+const COMPARE_YEAR=SELECTED_YEAR===2026?2025:null;
+const COMPARE_MO_CONFIG=COMPARE_YEAR?MO_CONFIG.map(c=>({yr:COMPARE_YEAR,mo:c.mo})):null;
+const COMPARE_LATEST_SHEET=COMPARE_YEAR?`${MONTH_EN[CFG_END_MONTH]}-${COMPARE_YEAR}`:null;
+const COMPARE_PERIOD_STR=COMPARE_YEAR?`${MO_LABELS[0]}–${MO_LABELS[MO_LABELS.length-1]} ${COMPARE_YEAR}`:null;
 function findMonthIdx(date){
   if(!date)return -1;
   return MO_CONFIG.findIndex(c=>c.yr===date.getFullYear()&&c.mo===date.getMonth());
@@ -1183,6 +1190,31 @@ function processIssueAll(table){
   return result;
 }
 
+// ── รวมยอดจ่ายออกของชุดเดือนที่กำหนด (ใช้กับการเทียบ YoY ที่ไม่ผูกกับ MO_CONFIG
+// ปัจจุบัน) — รับ table ดิบจาก _IssueSummary ตรงๆ ไม่ผ่าน processIssueAll ───────
+function sumIssueForMonths(table,moConfigList){
+  if(!table?.cols||!moConfigList?.length)return{totalQty:0,totalThb:0};
+  const cols=(table.cols||[]).map(c=>c.label||c.id||'');
+  const g=(row,i)=>{const c=(row.c||[])[i];return c?.v??c?.f??null;};
+  const fc=(kws,fb)=>{const r=findCol(cols,kws);return(r===null||r===undefined||r<0)?fb:r;};
+  const iMonth=fc(['m.','month','เดือน','mo.'],0);
+  const iQty=fc(['quantity','qty','จำนวน','จำนวนจ่าย'],8);
+  const iPrice=fc(['price_unit','price unit','unit price','price','ราคา'],9);
+  const iTotal=fc(['gross total','total','ราคารวม','รวม'],10);
+  const wantedKeys=new Set(moConfigList.map(c=>`${MONTH_EN[c.mo]}-${c.yr}`));
+  let totalQty=0,totalThb=0;
+  for(const row of(table.rows||[])){
+    const moRaw=String(g(row,iMonth)||'').trim().toUpperCase();
+    if(!wantedKeys.has(moRaw))continue;
+    const qty=parseFloat(g(row,iQty))||0;
+    if(qty<=0)continue;
+    const thbRaw=parseFloat(g(row,iTotal));
+    totalQty+=qty;
+    totalThb+=isNaN(thbRaw)?qty*(parseFloat(g(row,iPrice))||0):thbRaw;
+  }
+  return{totalQty,totalThb};
+}
+
 let _isLoading=false;
 async function loadData(){
   if(_isLoading)return; // debounce: กันยิงซ้อนตอนกด Refresh เร็วๆ
@@ -1205,7 +1237,9 @@ async function loadData(){
     const grpoPromise=loadJsonp(null,GRPO_GID);
     const stockPromises=STOCK_SHEETS.map(name=>loadJsonp(name,null));
     const issuePromise=loadJsonp(null,ISSUE_GID);
-    const[grpoResult,issueResult,...stockResults]=await Promise.allSettled([grpoPromise,issuePromise,...stockPromises]);
+    // โหลด stock เดือนล่าสุดของปีเทียบ (YoY) เพิ่มอีก 1 sheet — เฉพาะมุมมอง 2026
+    const comparePromise=COMPARE_LATEST_SHEET?loadJsonp(COMPARE_LATEST_SHEET,null):Promise.resolve(null);
+    const[grpoResult,issueResult,compareResult,...stockResults]=await Promise.allSettled([grpoPromise,issuePromise,comparePromise,...stockPromises]);
     setProgress(70,'ประมวลผล...');
 
     // 1. GRPO — โหลดไม่ได้ถือเป็น error หลัก (ข้อมูลรับเข้าเป็นแกนหลักของ dashboard)
@@ -1242,9 +1276,27 @@ async function loadData(){
     updateIssueFreshnessNote();
     _dbg.issueInfo=issueArr.map(m=>({month:m.moLabel,rows:m.rows.length,totalQty:m.totalQty,totalThb:Math.round(m.totalThb),dbg:m._debug}));
 
+    // 3. เทียบ YoY ช่วงเดียวกันปีก่อน (เฉพาะมุมมอง 2026) — รับเข้า/จ่ายออก คำนวณจาก
+    // ข้อมูลที่โหลดมาแล้ว (ชีตเป็น log รวมหลายปี ไม่ต้องโหลดซ้ำ) ส่วน stock ต้องโหลดเพิ่ม 1 sheet
+    let compare=null;
+    if(COMPARE_YEAR){
+      const cmpGrpoRows=grpoData.filter(r=>r.date&&COMPARE_MO_CONFIG.some(c=>c.yr===r.date.getFullYear()&&c.mo===r.date.getMonth()));
+      const cmpGrpoThb=cmpGrpoRows.reduce((s,r)=>s+r.thb,0);
+      const cmpIssue=(issueResult.status==='fulfilled'&&issueResult.value.status==='ok')
+        ?sumIssueForMonths(issueResult.value.table,COMPARE_MO_CONFIG):{totalQty:0,totalThb:0};
+      let cmpStockQty=null;
+      if(compareResult.status==='fulfilled'&&compareResult.value&&compareResult.value.status==='ok'){
+        cmpStockQty=processStock(compareResult.value.table,'').totalQty;
+      }
+      compare={
+        year:COMPARE_YEAR,periodStr:COMPARE_PERIOD_STR,
+        grpoThb:cmpGrpoThb,issueThb:cmpIssue.totalThb,issueQty:cmpIssue.totalQty,stockQty:cmpStockQty
+      };
+    }
+
     setProgress(98,'กำลังแสดงผล...');
     _cacheGrpo=grpoData;_cacheStockArr=stockArr;_cacheIssueArr=issueArr;
-    render(grpoData,stockArr,issueArr);
+    render(grpoData,stockArr,issueArr,compare);
     setProgress(100);
     if(silent)showToast('✅ อัพเดทข้อมูลล่าสุดแล้ว');
 
@@ -1265,7 +1317,7 @@ async function loadData(){
 }
 
 /* ── Render ── */
-function render(grpo,stockArr,issueArr){
+function render(grpo,stockArr,issueArr,compare){
   const now=new Date();
 
   // grpo คือ log รวมทุกปี (server ไม่กรองให้ เพราะ gid เดียวกันใช้ทั้ง 2025/2026) — ต้องกรอง
@@ -1797,6 +1849,15 @@ function render(grpo,stockArr,issueArr){
     if(execEl){
       const deadPct=stockValueTotal>0?(deadStockVal/stockValueTotal*100):0;
       const items=[];
+      if(compare){
+        const pct=(curr,prev)=>prev>0?((curr-prev)/prev*100):null;
+        const arw=(p)=>p===null?'–':(p>=0?`▲ ${p.toFixed(1)}%`:`▼ ${Math.abs(p).toFixed(1)}%`);
+        const cl=(p)=>p===null?'var(--mu)':(p>=0?'var(--g)':'var(--r)');
+        const currIssuedThb=issuedValByMo.reduce((s,v)=>s+v,0);
+        const grpoPct=pct(totalThb,compare.grpoThb), issuePct=pct(currIssuedThb,compare.issueThb);
+        const stockPct=(!mayStock.failed&&compare.stockQty!==null)?pct(mayTotalQty,compare.stockQty):null;
+        items.push(`<div class="exec-item">📊 <span>เทียบช่วงเดียวกันปีก่อน (${compare.periodStr}): รับเข้า <b style="color:${cl(grpoPct)}">${arw(grpoPct)}</b> (${fmt(Math.round(totalThb))}฿ vs ${fmt(Math.round(compare.grpoThb))}฿) · จ่ายออก <b style="color:${cl(issuePct)}">${arw(issuePct)}</b> (${fmt(Math.round(currIssuedThb))}฿ vs ${fmt(Math.round(compare.issueThb))}฿)${stockPct!==null?` · Stock ${LATEST_MO_LABEL} <b style="color:${cl(stockPct)}">${arw(stockPct)}</b> (${fmt(mayTotalQty)} vs ${fmt(compare.stockQty)} หน่วย)`:''}</span></div>`);
+      }
       items.push(`<div class="exec-item">🏦 <span>สต็อกคงเหลือรวม <b style="color:var(--g)">${mayStock.failed?'N/A':fmt(Math.round(stockValueTotal))+'฿'}</b> ${mayStock.failed?'(โหลดข้อมูลเดือนล่าสุดไม่ได้)':'ณ '+(mayStock.moLabel||'เดือนล่าสุด')}</span></div>`);
       if(!_issueDataFailed){
         const totalRecv=moArr.reduce((s,m)=>s+m.qty,0);
