@@ -829,8 +829,8 @@ function setYear(y){
   location.search=p.toString();
 }
 const CFG_YEAR=SELECTED_YEAR;
-const CFG_END_MONTH=SELECTED_YEAR===2025?11:5;   // 2025=ธ.ค. (เต็มปี) / 2026=มิ.ย. (ล่าสุด)
-const CFG_MONTHS=SELECTED_YEAR===2025?12:6;      // จำนวนเดือนที่แสดง (ย้อนหลังจาก CFG_END_MONTH)
+const CFG_END_MONTH=SELECTED_YEAR===2025?11:6;   // 2025=ธ.ค. (เต็มปี) / 2026=ก.ค. (ล่าสุด)
+const CFG_MONTHS=SELECTED_YEAR===2025?12:7;      // จำนวนเดือนที่แสดง (ย้อนหลังจาก CFG_END_MONTH)
 
 const MONTH_EN=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
 const MONTH_TH=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
